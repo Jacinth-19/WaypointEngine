@@ -8,6 +8,8 @@ name: Build
 on:
   push:
     branches: [main, "arena/**"]
+    # A documentation change cannot break a compiler; skip the matrix for it.
+    paths-ignore: ["**.md", "docs/**", "LICENSE", "NOTICE"]
   pull_request:
   workflow_dispatch:
 

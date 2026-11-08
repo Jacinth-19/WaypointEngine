@@ -5,8 +5,11 @@ unverified**. If it is not in the first table, do not assume it works.
 
 ## Verified
 
-Environment: Debian 12 container, gcc 12.2, CMake 4.4.4, Ninja 1.13, Python
-3.11. No X11, OpenGL, Vulkan or Qt installed — so no window can ever open here.
+Environment: Debian 12 container, gcc 12.2 and Clang 21 (via zig's libc++),
+CMake 4.4.4, Ninja 1.13, Python 3.11. No X11, OpenGL, Vulkan or Qt installed — so
+no window can ever open here. Anything needing a driver, a display or a
+different OS is verified on GitHub runners instead, and the CI table below is the
+authority for those.
 
 | What | How | Result |
 | --- | --- | --- |
@@ -25,32 +28,33 @@ Environment: Debian 12 container, gcc 12.2, CMake 4.4.4, Ninja 1.13, Python
 | Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
 
-### CI matrix (GitHub Actions, run on commit `6d044ef`)
+### CI (GitHub Actions, commit `219958c`)
 
-| Job | Result |
-| --- | --- |
-| Core + tests (ubuntu-latest, gcc) | **pass** |
-| Core + tests (macos-latest, AppleClang) | **pass** |
-| Desktop runtime (ubuntu-latest) — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled to `.bin` | **pass** |
-| Desktop runtime (macos-latest) — same, metal/spirv/glsl/essl profiles | **pass** |
-| Editor (Qt 6) | **pass** |
-| Core + tests (windows-latest, MSVC) | compiles and runs the suite, then fails to link: Jolt ships the static MSVC runtime, the project used the DLL one (LNK2038). Fixed since by building everything with the static runtime. |
-| Desktop runtime (windows-latest) | fail: HLSL (dxil) shader compile, see below |
+Every job below ran to completion on GitHub's own runners:
+
+| Job | Runner | Result |
+| --- | --- | --- |
+| Core + tests | ubuntu-latest, gcc | **pass** — configure, build, `ctest`, `doctor`, `deps status` |
+| Core + tests | macos-latest, AppleClang | **pass** |
+| Core + tests | windows-latest, MSVC 14.51 (static CRT) | **pass** |
+| Desktop runtime | ubuntu-latest — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled | **pass** |
+| Desktop runtime | macos-latest — spirv/glsl/essl/metal | **pass** |
+| Desktop runtime | windows-latest — spirv/glsl/essl/dxbc | **pass** |
+| Editor (Qt 6) | ubuntu-latest — build + offscreen start | **pass** |
 
 ## Implemented but unverified
 
-These compile in the sense above but have **never been linked or run** here, and
-some have never been configured at all:
+Anything here compiles and links, but has never been **run** by a human or by
+CI, and is not promised to work:
 
 | Area | Why unverified |
 | --- | --- |
-| bgfx window + first frame | the CI desktop jobs link and compile shaders, but no job opens a window or renders a frame — there is no GPU on the runners and no smoke run yet |
-| Runtime run on Windows | dxil (D3D12) shader bytecode | Not built at all by default now: DXC rejects our vertex shader with a spurious `hlsl.hlsl:624:101: error: expression result unused [-Werror,-Wunused-value]` on the varying write, and the same shader compiles for dxbc/dxil in the fragment stage. dxbc (D3D11, the default Windows backend) is compiled and linked; `WAYPOINT_RENDERER=d3d12` therefore has no shaders until this is solved. Enable the attempt with `-DWAYPOINT_COMPILE_DXIL=ON`. |
-| Qt 6 editor *running* | Qt 6 is not installed here; CI builds and starts the editor offscreen, this environment cannot |
-| Windows core tests passing | last run failed at compile (see matrix), so no Windows test run has completed |
-| Android NDK build | not installed |
-| `wp.py export` output | needs a real runtime binary; refused under headless (verified refusal only) |
-| GitHub Actions workflows | written, YAML-checked, **not executed** |
+| bgfx window and first frame | no CI runner has a GPU, and nothing yet asserts that a frame was produced; this is the next milestone |
+| Runtime on Windows/macOS | the desktop jobs build and link the runtime, they do not start it |
+| Qt 6 editor interaction | CI starts the editor offscreen and checks it does not crash; nobody has clicked a button |
+| `wp.py export` output | needs a real runtime binary and is refused under headless; packaging is unverified |
+| Android NDK build | workflow exists but has never been run |
+| dxil / D3D12 shaders | not compiled by default (see below) |
 
 ## Known gaps
 
@@ -61,6 +65,11 @@ some have never been configured at all:
 - No shadows, HDR, tonemap, IBL or clustered lighting yet.
 - No textures, audio, asset cooking, or sector streaming.
 - Editor: new/open project, scene tree, console, add/delete entity, save scene.
+- **d3d12 backend**: dxil shader bytecode is not built. DXC rejects our vertex
+  shader through the spirv-cross HLSL path
+  (`hlsl.hlsl:624:101: error: expression result unused`), while the same shader
+  compiles for dxbc and the fragment stage compiles for dxil. `-DWAYPOINT_COMPILE_DXIL=ON`
+  re-enables the attempt; the D3D11 (dxbc) backend on Windows is unaffected.
   No inspector, viewport, undo/redo or play mode.
 - Scripts are project-level: `ScriptComponent` is loaded but per-entity script
   instances are not created yet.

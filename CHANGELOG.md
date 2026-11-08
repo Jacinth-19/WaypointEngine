@@ -16,6 +16,14 @@ All notable changes to Waypoint Engine. Format follows
 - `cmake/patches/`: tracked local patches applied identically by `wp.py deps
   fetch` and CMake, currently one fix so pinned sol2 v3.3.0 compiles with Clang.
 
+### CI
+- `Build` is green on all six jobs: core + tests on ubuntu (gcc), macOS
+  (AppleClang) and Windows (MSVC), and the desktop runtime — bgfx, SDL3, shaderc,
+  Jolt, Lua, compiled shaders — on all three. `Editor (Qt 6)` is green too.
+- A failing job now posts its error lines as check-run annotations and a commit
+  comment, so failures are readable without downloading the log artifact.
+- Documentation-only pushes skip the build matrix.
+
 ### Fixed
 - One CRT for the whole build (`CMAKE_MSVC_RUNTIME_LIBRARY`), because Jolt ships
   the static MSVC runtime and mixing runtimes is an LNK2038 link error.
