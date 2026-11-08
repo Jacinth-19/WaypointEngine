@@ -186,6 +186,16 @@ jobs:
             --smoke-test 2>&1 | tee smoke.log
           exit "${PIPESTATUS[0]}"
 
+      # The step log is the only other place this appears, and job logs cannot be
+      # read through the API - so publish what was actually proven (frames, draw
+      # calls, backend) as a check-run annotation that survives the log.
+      - name: Publish what the smoke test proved
+        if: success()
+        shell: bash
+        run: |
+          line=$(grep "Smoke test passed" smoke.log | tail -1 | sed 's/^.*\] //')
+          if [ -n "$line" ]; then echo "::notice::$line"; fi
+
       - name: Report failure lines
         if: failure()
         shell: bash
