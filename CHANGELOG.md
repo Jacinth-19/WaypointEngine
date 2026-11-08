@@ -7,6 +7,16 @@ All notable changes to Waypoint Engine. Format follows
 ## [Unreleased]
 
 ### Added
+- Meshes named by a scene are loaded and drawn. `MeshRendererComponent.mesh`
+  accepts `builtin:cube`, `builtin:grid` or a glTF path relative to the project
+  (`assets/cube.glb`, or `assets/cube.glb#2` for one primitive). Files are
+  uploaded once and cached for the renderer's lifetime; a reference that cannot
+  be loaded is reported once and the entity is skipped, rather than quietly
+  drawing a cube in its place. hello_cube now draws its own `assets/cube.glb`,
+  so CI's smoke test exercises the whole path - file, upload, draw call.
+- `engine/render/MeshGeometry.{hpp,cpp}`: the vertex format and the
+  glTF-to-vertex conversion, outside the renderer so the headless suite can
+  check that positions and colours survive the trip (6 new cases, 76 total).
 - glTF geometry loading: `engine/assets/GltfLoader.{hpp,cpp}` reads `.glb` and
   `.gltf` files into positions, normals, COLOR_0 and 32-bit indices, applies the
   node hierarchy's transform so an asset lands where it was placed, and reports

@@ -23,8 +23,17 @@ python tools/wp.py run samples/hello_cube
 one primitive. It is written by hand (a small script, kept out of the tree) rather
 than exported, so it stays small enough to read and review, and the engine's
 loader test loads it on every platform - positions, normals, index range and
-triangle winding against the vertex normal. The scene still draws the built-in
-cube; wiring this file into the renderer is the next step.
+triangle winding against the vertex normal.
+
+All three mesh entities in `scenes/main.scene.json` point at it:
+
+```json
+"meshRenderer": { "mesh": "assets/cube.glb", "color": [0.95, 0.55, 0.2] }
+```
+
+`builtin:cube` and `builtin:grid` still work, and a path may end in `#2` to pick
+one primitive out of a file with several. Paths are relative to the project
+folder, so the project can be moved without editing scenes.
 
 ## What to look for
 

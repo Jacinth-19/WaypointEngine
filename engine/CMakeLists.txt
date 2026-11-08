@@ -28,6 +28,7 @@ set(WAYPOINT_ENGINE_SOURCES
     scene/Systems.cpp
     project/Project.cpp
     platform/Input.cpp
+    render/MeshGeometry.cpp
 )
 
 if(WAYPOINT_ENABLE_SCRIPTING)

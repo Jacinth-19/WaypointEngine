@@ -10,9 +10,13 @@
 #include "render/BgfxRenderer.hpp"
 
 #include "core/ImageWrite.hpp"
+#include "render/MeshGeometry.hpp"
 
 #include <array>
 #include <cctype>
+#include <map>
+#include <stdexcept>
+#include <string_view>
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
@@ -35,28 +39,14 @@
 namespace waypoint {
 namespace {
 
-// Position + packed colour, 16 bytes. bgfx expects ABGR packed into a uint32
-// on little-endian machines, hence the unusual shift order.
-struct PosColorVertex {
-    f32 x = 0.0f;
-    f32 y = 0.0f;
-    f32 z = 0.0f;
-    u32 abgr = 0xFFFFFFFFu;
-};
-static_assert(sizeof(PosColorVertex) == 16, "vertex must stay tightly packed");
-
-u32 abgr(f32 r, f32 g, f32 b, f32 a = 1.0f) {
-    const auto toByte = [](f32 value) {
-        const f32 clamped = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
-        return static_cast<u32>(clamped * 255.0f + 0.5f);
-    };
-    return (toByte(a) << 24) | (toByte(b) << 16) | (toByte(g) << 8) | toByte(r);
-}
+// The vertex format and the glTF-to-vertex conversion live in MeshGeometry, so
+// the headless suite can test them.
+using MeshVertex = waypoint::MeshVertex;
 
 // A unit cube made of six coloured faces, so the shape reads without lighting.
-const std::array<PosColorVertex, 24>& cubeVertices() {
-    static const std::array<PosColorVertex, 24> vertices = [] {
-        std::array<PosColorVertex, 24> result{};
+const std::array<MeshVertex, 24>& cubeVertices() {
+    static const std::array<MeshVertex, 24> vertices = [] {
+        std::array<MeshVertex, 24> result{};
         const f32 h = 0.5f;
         // Six faces; each face gets a slightly different brightness.
         const f32 shades[6] = {1.0f, 0.82f, 0.68f, 0.9f, 0.76f, 0.6f};
@@ -77,11 +67,11 @@ const std::array<PosColorVertex, 24>& cubeVertices() {
 
         for (int face = 0; face < 6; ++face) {
             for (int vertex = 0; vertex < 4; ++vertex) {
-                PosColorVertex& out = result[static_cast<std::size_t>(face * 4 + vertex)];
+                MeshVertex& out = result[static_cast<std::size_t>(face * 4 + vertex)];
                 out.x = positions[face][vertex][0];
                 out.y = positions[face][vertex][1];
                 out.z = positions[face][vertex][2];
-                out.abgr = abgr(shades[face], shades[face], shades[face]);
+                out.abgr = packColor(shades[face], shades[face], shades[face]);
             }
         }
         return result;
@@ -103,8 +93,8 @@ const std::array<u16, 36>& cubeIndices() {
 
 // Ground grid on the XZ plane, drawn as a line list. The two world axes are
 // tinted so beginners can see which way is which.
-std::vector<PosColorVertex> buildGrid(f32 halfExtent, f32 spacing) {
-    std::vector<PosColorVertex> vertices;
+std::vector<MeshVertex> buildGrid(f32 halfExtent, f32 spacing) {
+    std::vector<MeshVertex> vertices;
     const int lines = static_cast<int>(halfExtent / spacing);
     vertices.reserve(static_cast<std::size_t>(lines * 2 + 1) * 4);
 
@@ -113,14 +103,14 @@ std::vector<PosColorVertex> buildGrid(f32 halfExtent, f32 spacing) {
         const bool isAxis = i == 0;
 
         // Lines running along Z.
-        const u32 alongZ = isAxis ? abgr(0.85f, 0.30f, 0.30f)   // X axis is red
-                                  : abgr(0.28f, 0.29f, 0.31f);
+        const u32 alongZ = isAxis ? packColor(0.85f, 0.30f, 0.30f)   // X axis is red
+                                  : packColor(0.28f, 0.29f, 0.31f);
         vertices.push_back({offset, 0.0f, -halfExtent, alongZ});
         vertices.push_back({offset, 0.0f, halfExtent, alongZ});
 
         // Lines running along X.
-        const u32 alongX = isAxis ? abgr(0.30f, 0.45f, 0.90f)   // Z axis is blue
-                                  : abgr(0.28f, 0.29f, 0.31f);
+        const u32 alongX = isAxis ? packColor(0.30f, 0.45f, 0.90f)   // Z axis is blue
+                                  : packColor(0.28f, 0.29f, 0.31f);
         vertices.push_back({-halfExtent, 0.0f, offset, alongX});
         vertices.push_back({halfExtent, 0.0f, offset, alongX});
     }
@@ -246,9 +236,46 @@ struct BgfxRenderer::Impl {
     bgfx::VertexLayout layout;
     bgfx::ProgramHandle program{BGFX_INVALID_HANDLE};
     bgfx::UniformHandle tint{BGFX_INVALID_HANDLE};
-    bgfx::VertexBufferHandle cubeVertexBuffer{BGFX_INVALID_HANDLE};
-    bgfx::IndexBufferHandle cubeIndexBuffer{BGFX_INVALID_HANDLE};
-    bgfx::VertexBufferHandle gridVertexBuffer{BGFX_INVALID_HANDLE};
+    // Meshes named by a scene, uploaded on first use and kept for the lifetime
+    // of the renderer. Keyed by the reference as written in the scene file.
+    struct UploadedMesh {
+        bgfx::VertexBufferHandle vertices{BGFX_INVALID_HANDLE};
+        bgfx::IndexBufferHandle indices{BGFX_INVALID_HANDLE};
+        std::uint32_t indexCount = 0;
+    };
+    std::map<std::string, UploadedMesh> meshCache;
+    // Project root, so glTF paths in a scene resolve relative to the project.
+    std::filesystem::path baseDirectory;
+
+    // Resolves a mesh reference to uploaded buffers, or nullptr when it cannot
+    // be loaded. `baseDirectory` is the project root, which glTF paths are
+    // relative to.
+    const UploadedMesh* meshFor(std::string_view reference,
+                                const std::filesystem::path& baseDirectory) {
+        const std::string key(reference);
+        if (const auto cached = meshCache.find(key); cached != meshCache.end()) {
+            // A failed load is cached as an invalid handle, so the warning is
+            // printed once rather than every frame.
+            return bgfx::isValid(cached->second.vertices) ? &cached->second : nullptr;
+        }
+
+        UploadedMesh uploaded;
+        std::string error;
+        if (!uploadMesh(reference, baseDirectory, uploaded, &error)) {
+            // Remember the failure so a broken reference is reported once, not
+            // sixty times a second.
+            Log::warn("{}", error);
+            meshCache.emplace(key, UploadedMesh{});
+            return nullptr;
+        }
+        const auto inserted =
+            meshCache.emplace(key, uploaded).first;
+        return &inserted->second;
+    }
+
+    // Loads "builtin:cube", "builtin:grid" or a glTF file, and uploads it.
+    bool uploadMesh(std::string_view reference, const std::filesystem::path& baseDirectory,
+                    UploadedMesh& out, std::string* error);
     bgfx::SwapChain swapChain{};
     u16 width = 1280;
     u16 height = 720;
@@ -275,17 +302,8 @@ struct BgfxRenderer::Impl {
             .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
             .end();
 
-        const auto& vertices = cubeVertices();
-        const auto& indices = cubeIndices();
-        cubeVertexBuffer = bgfx::createVertexBuffer(
-            bgfx::copy(vertices.data(), static_cast<u32>(sizeof(PosColorVertex) * vertices.size())),
-            layout);
-        cubeIndexBuffer = bgfx::createIndexBuffer(
-            bgfx::copy(indices.data(), static_cast<u32>(sizeof(u16) * indices.size())));
-
-        const std::vector<PosColorVertex> grid = buildGrid(20.0f, 1.0f);
-        gridVertexBuffer = bgfx::createVertexBuffer(
-            bgfx::copy(grid.data(), static_cast<u32>(sizeof(PosColorVertex) * grid.size())), layout);
+        // The built-in cube and grid are uploaded on first use by meshFor(),
+        // which also caches anything a scene names.
     }
 
     bool createShaders(const std::string& directory) {
@@ -331,6 +349,89 @@ struct BgfxRenderer::Impl {
     }
 };
 
+// "assets/cube.glb#2" picks the third primitive; a bare path uses the first.
+bool BgfxRenderer::Impl::uploadMesh(std::string_view reference,
+                                    const std::filesystem::path& baseDirectory,
+                                    UploadedMesh& out, std::string* error) {
+        const auto fail = [&error](std::string message) {
+            if (error != nullptr) {
+                *error = std::move(message);
+            }
+            return false;
+        };
+
+        if (reference == "builtin:cube" || (reference.empty())) {
+            const auto& vertices = cubeVertices();
+            const auto& indices = cubeIndices();
+            out.vertices = bgfx::createVertexBuffer(
+                bgfx::copy(vertices.data(), static_cast<u32>(sizeof(MeshVertex) * vertices.size())),
+                layout);
+            out.indices = bgfx::createIndexBuffer(
+                bgfx::copy(indices.data(), static_cast<u32>(sizeof(u16) * indices.size())));
+            out.indexCount = static_cast<std::uint32_t>(indices.size());
+            return true;
+        }
+        if (reference == "builtin:grid") {
+            const std::vector<MeshVertex> grid = buildGrid(20.0f, 1.0f);
+            out.vertices = bgfx::createVertexBuffer(
+                bgfx::copy(grid.data(), static_cast<u32>(sizeof(MeshVertex) * grid.size())), layout);
+            out.indices = BGFX_INVALID_HANDLE;
+            out.indexCount = static_cast<std::uint32_t>(grid.size());
+            return true;
+        }
+
+        // A glTF reference: path, optional "#<primitive>" suffix.
+        std::string pathPart(reference);
+        std::uint32_t wanted = 0;
+        if (const auto hash = pathPart.find('#'); hash != std::string::npos) {
+            const std::string suffix = pathPart.substr(hash + 1);
+            pathPart.resize(hash);
+            try {
+                wanted = static_cast<std::uint32_t>(std::stoul(suffix));
+            } catch (const std::exception&) {
+                return fail("mesh '" + std::string(reference) +
+                            "': the part after '#' is not a primitive index");
+            }
+        }
+
+        const std::filesystem::path pathPartPath(pathPart);
+        const std::filesystem::path path =
+            pathPartPath.is_absolute() ? pathPartPath : baseDirectory / pathPartPath;
+        GltfDocument document;
+        if (!loadGltf(path, document, error)) {
+            return fail("mesh '" + std::string(reference) + "': " + (error ? *error : ""));
+        }
+        if (wanted >= document.primitives.size()) {
+            return fail("mesh '" + std::string(reference) + "': the file has " +
+                        std::to_string(document.primitives.size()) + " primitive(s)");
+        }
+        const GltfPrimitive& primitive = document.primitives[wanted];
+
+        const std::vector<MeshVertex> vertices = buildMeshVertices(primitive, Vec3(1.0f));
+        if (vertices.empty()) {
+            return fail("mesh '" + std::string(reference) + "': it has no vertices");
+        }
+        out.vertices = bgfx::createVertexBuffer(
+            bgfx::copy(vertices.data(), static_cast<u32>(sizeof(MeshVertex) * vertices.size())),
+            layout);
+        // bgfx takes 16- or 32-bit indices; a small mesh stays 16-bit.
+        if (vertices.size() <= 0xFFFFu) {
+            std::vector<u16> narrow;
+            narrow.reserve(primitive.indices.size());
+            for (const std::uint32_t index : primitive.indices) {
+                narrow.push_back(static_cast<u16>(index));
+            }
+            out.indices = bgfx::createIndexBuffer(
+                bgfx::copy(narrow.data(), static_cast<u32>(sizeof(u16) * narrow.size())));
+        } else {
+            out.indices = bgfx::createIndexBuffer(
+                bgfx::copy(primitive.indices.data(),
+                           static_cast<u32>(sizeof(u32) * primitive.indices.size())));
+        }
+        out.indexCount = static_cast<std::uint32_t>(primitive.indices.size());
+        return true;
+    }
+
 BgfxRenderer::BgfxRenderer() : m_impl(std::make_unique<Impl>()) {}
 
 BgfxRenderer::~BgfxRenderer() {
@@ -370,6 +471,7 @@ bool BgfxRenderer::initialize(const RendererConfig& config, std::string* error) 
 
     m_impl->width = config.width;
     m_impl->height = config.height;
+    m_impl->baseDirectory = config.projectRoot;
     m_impl->swapChain = init.swapChain;
     m_impl->resetFlags = init.reset;
 
@@ -408,18 +510,15 @@ void BgfxRenderer::shutdown() {
         bgfx::destroy(m_impl->tint);
         m_impl->tint = BGFX_INVALID_HANDLE;
     }
-    if (bgfx::isValid(m_impl->cubeVertexBuffer)) {
-        bgfx::destroy(m_impl->cubeVertexBuffer);
+    for (auto& entry : m_impl->meshCache) {
+        if (bgfx::isValid(entry.second.vertices)) {
+            bgfx::destroy(entry.second.vertices);
+        }
+        if (bgfx::isValid(entry.second.indices)) {
+            bgfx::destroy(entry.second.indices);
+        }
     }
-    if (bgfx::isValid(m_impl->cubeIndexBuffer)) {
-        bgfx::destroy(m_impl->cubeIndexBuffer);
-    }
-    if (bgfx::isValid(m_impl->gridVertexBuffer)) {
-        bgfx::destroy(m_impl->gridVertexBuffer);
-    }
-    m_impl->cubeVertexBuffer = BGFX_INVALID_HANDLE;
-    m_impl->cubeIndexBuffer = BGFX_INVALID_HANDLE;
-    m_impl->gridVertexBuffer = BGFX_INVALID_HANDLE;
+    m_impl->meshCache.clear();
 
     bgfx::shutdown();
     m_impl->initialized = false;
@@ -486,8 +585,10 @@ void BgfxRenderer::beginFrame(const Transform& cameraTransform, f32 fieldOfViewD
     bgfx::setTransform(glm::value_ptr(identity));
     const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     bgfx::setUniform(m_impl->tint, white);
-    bgfx::setVertexBuffer(0, m_impl->gridVertexBuffer);
-    bgfx::submit(0, m_impl->program);
+    if (const auto* grid = m_impl->meshFor("builtin:grid", m_impl->baseDirectory)) {
+        bgfx::setVertexBuffer(0, grid->vertices);
+        bgfx::submit(0, m_impl->program);
+    }
 }
 
 std::size_t BgfxRenderer::drawWorld(const World& world) {
@@ -505,18 +606,21 @@ std::size_t BgfxRenderer::drawWorld(const World& world) {
         const auto& mesh = view.get<const MeshRendererComponent>(entity);
         const auto& transform = view.get<const TransformComponent>(entity).transform;
 
-        // Only the built-in cube exists so far; unknown names are reported once
-        // per frame at debug level instead of silently drawing nothing.
-        if (mesh.mesh != "builtin:cube" && !mesh.mesh.empty()) {
-            Log::debug("Mesh '{}' is not available yet; drawing a cube instead", mesh.mesh);
+        // A reference that cannot be loaded is reported once, by meshFor(), and
+        // the entity is skipped: drawing a cube in its place would hide the typo.
+        const auto* uploaded = m_impl->meshFor(mesh.mesh, m_impl->baseDirectory);
+        if (uploaded == nullptr) {
+            continue;
         }
 
         const Mat4 model = transform.matrix();
         bgfx::setTransform(glm::value_ptr(model));
         const float rgba[4] = {mesh.color.x, mesh.color.y, mesh.color.z, 1.0f};
         bgfx::setUniform(m_impl->tint, rgba);
-        bgfx::setVertexBuffer(0, m_impl->cubeVertexBuffer);
-        bgfx::setIndexBuffer(m_impl->cubeIndexBuffer);
+        bgfx::setVertexBuffer(0, uploaded->vertices);
+        if (bgfx::isValid(uploaded->indices)) {
+            bgfx::setIndexBuffer(uploaded->indices);
+        }
         bgfx::submit(0, m_impl->program);
         ++drawn;
     }

@@ -136,6 +136,7 @@ int Application::run(const ApplicationConfig& config) {
     rendererConfig.width = static_cast<u16>(windowConfig.width);
     rendererConfig.height = static_cast<u16>(windowConfig.height);
     rendererConfig.shaderDirectory = FileSystem::genericString(findShaderDirectory());
+    rendererConfig.projectRoot = config.project.rootDirectory;
     rendererConfig.vsync = config.vsync;
     rendererConfig.debug = config.debugRenderer;
 

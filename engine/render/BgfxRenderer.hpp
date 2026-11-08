@@ -8,6 +8,7 @@
 // bgfx types are hidden behind a pimpl so including this header stays cheap.
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -31,6 +32,9 @@ struct RendererConfig {
     u16 height = 720;
     // Folder containing the compiled shaders, laid out as <dir>/<profile>/*.bin.
     std::string shaderDirectory;
+    // Project root. Mesh references in a scene ("assets/cube.glb") are resolved
+    // against it, so a project can be moved without editing its scenes.
+    std::filesystem::path projectRoot;
     // Empty or "auto" picks the best backend for the machine. The
     // WAYPOINT_RENDERER environment variable overrides this at runtime.
     std::string preferredRenderer;

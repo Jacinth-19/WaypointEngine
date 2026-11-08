@@ -17,6 +17,7 @@ set(WAYPOINT_TEST_SOURCES
     test_content.cpp
     test_image.cpp
     test_gltf.cpp
+    test_mesh_geometry.cpp
 )
 
 if(WAYPOINT_ENABLE_SCRIPTING)
