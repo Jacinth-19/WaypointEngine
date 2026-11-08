@@ -52,6 +52,15 @@ function(waypoint_silence_warnings target)
     endif()
 endfunction()
 
+# Returns the source directory chosen for `name` (empty if it was never
+# resolved). WAYPOINT_DEP_<name>_SOURCE_DIR only lives in the scope of the
+# waypoint_dependency_<name>() function that set it, so anything that needs the
+# path later - shader compilation needs bgfx/src for bgfx_shader.sh - asks here.
+function(waypoint_dependency_dir out_var name)
+    get_property(source GLOBAL PROPERTY "WAYPOINT_SOURCE_${name}")
+    set(${out_var} "${source}" PARENT_SCOPE)
+endfunction()
+
 # Applies any local patch in cmake/patches/<name>-*.patch to a checkout.
 #
 # A pin is supposed to be pristine upstream code, so patches stay rare, live in

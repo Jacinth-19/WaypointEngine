@@ -44,8 +44,17 @@ function(waypoint_attach_shaders target)
     endif()
 
     set(varying_def "${WAYPOINT_SHADER_SOURCE_DIR}/varying.def.sc")
-    # bgfx's own shader headers live in the bgfx checkout, not in a package.
-    set(include_dirs "${WAYPOINT_DEP_bgfx_SOURCE_DIR}/src" "${WAYPOINT_SHADER_SOURCE_DIR}")
+
+    # bgfx's own shader headers (bgfx_shader.sh, bgfx_compute.sh) live in the
+    # bgfx checkout, not in a package, so shaderc needs an explicit -i for them;
+    # without it every shader fails with "Could not open include file".
+    waypoint_dependency_dir(bgfx_dir bgfx)
+    if(NOT bgfx_dir)
+        message(FATAL_ERROR
+            "Waypoint: the bgfx checkout is unknown, so bgfx_shader.sh cannot be found. "
+            "Call waypoint_dependency_bgfx() before waypoint_attach_shaders().")
+    endif()
+    set(include_dirs "${bgfx_dir}/src" "${WAYPOINT_SHADER_SOURCE_DIR}")
 
     bgfx_compile_shaders(
         TYPE VERTEX

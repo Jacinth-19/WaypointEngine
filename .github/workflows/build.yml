@@ -79,8 +79,8 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### core ${{ matrix.os }} - headless build + tests"
-            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|not found|No such file" build.log \
-              | grep -vE "0 errors?|error-reporting" | head -60 || true
+            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
+              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -40 || true
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
             tail -n 80 build.log >> "$excerpt"
@@ -130,7 +130,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             ninja-build libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
             libxcursor-dev libxfixes-dev libxi-dev libxss-dev libwayland-dev \
-            libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libvulkan-dev
+            libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libvulkan-dev \
+            libasound2-dev libpulse-dev libudev-dev libdbus-1-dev
 
       - name: Cache dependency checkouts
         uses: actions/cache@v4
@@ -159,8 +160,8 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### desktop ${{ matrix.os }} - runtime build"
-            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|not found|No such file" build.log \
-              | grep -vE "0 errors?|error-reporting" | head -60 || true
+            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
+              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -40 || true
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
             tail -n 80 build.log >> "$excerpt"
