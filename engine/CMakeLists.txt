@@ -20,6 +20,7 @@ set(WAYPOINT_ENGINE_SOURCES
     core/FileSystem.cpp
     core/ImageWrite.cpp
     assets/GltfLoader.cpp
+    assets/StbImage.cpp
     core/Log.cpp
     core/Uuid.cpp
     ecs/World.cpp

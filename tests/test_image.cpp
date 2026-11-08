@@ -16,7 +16,8 @@
 #include "core/ImageWrite.hpp"
 #include "TestSupport.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
+// Declarations only: the implementation lives in engine/assets/StbImage.cpp, so
+// the test binary links against the same code the engine uses.
 #include <stb_image.h>
 
 using namespace waypoint;

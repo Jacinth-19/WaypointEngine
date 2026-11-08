@@ -15,16 +15,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#define TINYGLTF_IMPLEMENTATION
-// stb_image is only needed for textures, which come later; the geometry path
-// must not drag it in.
-// tinygltf's inline helpers reference both stb headers, so include the
-// declarations up front. Implementations live elsewhere: stb_image_write's in
-// ImageWrite.cpp, and the only thing this file needs from stb is the header's
-// own declarations. No TINYGLTF_IMPLEMENTATION here either - the loader header
-// pulls that in exactly once, in the library.
+// tinygltf's inline helpers reference both stb headers, so the declarations come
+// first. The implementations are compiled exactly once each: stb_image's in
+// assets/StbImage.cpp, stb_image_write's in core/ImageWrite.cpp. TINYGLTF's own
+// implementation belongs to this file, since this is the only translation unit
+// that parses glTF.
 #include <stb_image.h>
 #include <stb_image_write.h>
+
+#define TINYGLTF_IMPLEMENTATION
 #include <tiny_gltf.h>
 
 #include "core/FileSystem.hpp"
