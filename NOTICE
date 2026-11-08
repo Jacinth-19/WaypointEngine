@@ -19,6 +19,10 @@ permissive licences:
   SDL 3 (window and input)                     Zlib       https://github.com/libsdl-org/SDL
   Lua 5.4 (scripting language)                 MIT        https://www.lua.org/license.html
   sol2 (C++ <-> Lua bindings)                  MIT        https://github.com/ThePhD/sol2
+      Distributed here with one local modification: a fix to
+      sol::optional<T&>::emplace() in include/sol/optional_implementation.hpp,
+      because the pinned version does not compile with Clang. The patch and its
+      rationale are in cmake/patches/ (see cmake/patches/README.md).
   Jolt Physics                                 MIT        https://github.com/jrouwe/JoltPhysics
   bgfx (rendering)                             BSD-2-Clause https://github.com/bkaradzic/bgfx
   bx (bgfx base library)                       BSD-2-Clause https://github.com/bkaradzic/bx

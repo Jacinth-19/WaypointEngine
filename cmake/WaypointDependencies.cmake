@@ -52,6 +52,36 @@ function(waypoint_silence_warnings target)
     endif()
 endfunction()
 
+# Applies any local patch in cmake/patches/<name>-*.patch to a checkout.
+#
+# A pin is supposed to be pristine upstream code, so patches stay rare, live in
+# tracked files, and are applied here and by `wp.py deps fetch` so that every
+# dependency path ends up byte-identical. Re-running is a no-op.
+function(waypoint_apply_dependency_patches name source)
+    file(GLOB patches "${CMAKE_CURRENT_LIST_DIR}/patches/${name}-*.patch")
+    foreach(patch IN LISTS patches)
+        get_filename_component(patch_name "${patch}" NAME)
+        execute_process(
+            COMMAND git -C "${source}" apply --check --reverse "${patch}"
+            RESULT_VARIABLE already_applied
+            OUTPUT_QUIET
+            ERROR_QUIET)
+        if(already_applied EQUAL 0)
+            continue()
+        endif()
+        execute_process(
+            COMMAND git -C "${source}" apply "${patch}"
+            RESULT_VARIABLE apply_result
+            OUTPUT_VARIABLE apply_output
+            ERROR_VARIABLE apply_output)
+        if(NOT apply_result EQUAL 0)
+            message(FATAL_ERROR
+                "Waypoint: could not apply ${patch_name} to ${name}: ${apply_output}")
+        endif()
+        message(STATUS "Waypoint: applied ${patch_name} to ${name}")
+    endforeach()
+endfunction()
+
 # Guarantees the source for `name` is available and stores the path in
 # WAYPOINT_DEP_<name>_SOURCE_DIR.
 #
@@ -94,6 +124,7 @@ function(waypoint_dependency_source name)
         set(source "${${name}_SOURCE_DIR}")
     endif()
 
+    waypoint_apply_dependency_patches(${name} "${source}")
     set_property(GLOBAL PROPERTY "${cache_var}" "${source}")
     set(WAYPOINT_DEP_${name}_SOURCE_DIR "${source}" PARENT_SCOPE)
 endfunction()

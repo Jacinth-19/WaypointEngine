@@ -30,6 +30,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCKFILE = REPO_ROOT / "external" / "dependencies.lock.json"
 EXTERNAL_DIR = REPO_ROOT / "external"
+PATCH_DIR = REPO_ROOT / "cmake" / "patches"
 BUILD_ROOT = REPO_ROOT / "build"
 DIST_ROOT = REPO_ROOT / "dist"
 TEMPLATES_DIR = REPO_ROOT / "templates"
@@ -376,17 +377,53 @@ def git_head(path: Path) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def dependency_patches(name: str) -> list[Path]:
+    """Local patches applied on top of a pinned dependency checkout."""
+    if not PATCH_DIR.is_dir():
+        return []
+    return sorted(PATCH_DIR.glob(f"{name}-*.patch"))
+
+
+def patch_is_applied(directory: Path, patch: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(directory), "apply", "--check", "--reverse", str(patch)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def apply_dependency_patches(name: str, directory: Path) -> None:
+    """Applies cmake/patches/<name>-*.patch to a checkout, idempotently.
+
+    A pin is meant to be pristine upstream code, so we patch in exactly one
+    documented place and only for a defect that stops the pin from compiling.
+    CMake applies the same files, so both dependency paths stay identical.
+    """
+    for patch in dependency_patches(name):
+        if patch_is_applied(directory, patch):
+            continue
+        if run(["git", "-C", str(directory), "apply", str(patch)]) != 0:
+            die(f"{name}: could not apply {patch.name}")
+        say(f"  {STYLE.dim}{name}: applied {patch.name}{STYLE.end}")
+
+
 def dependency_report() -> dict[str, dict]:
     report: dict[str, dict] = {}
     for name, pin in load_lockfile().items():
         directory = EXTERNAL_DIR / name
         present = (directory / ".git").exists()
         head = git_head(directory) if present else None
+        patches = dependency_patches(name) if present else []
         report[name] = {
             "present": present and head is not None,
             "commit": pin.get("commit", ""),
             "head": head,
             "matches": head == pin.get("commit", ""),
+            "patches": patches,
+            "patched": all(patch_is_applied(directory, patch) for patch in patches),
             "tag": pin.get("tag", ""),
             "purpose": pin.get("purpose", ""),
         }
@@ -400,8 +437,16 @@ def command_deps(args: argparse.Namespace) -> int:
         matches = 0
         for name, info in report.items():
             if info["matches"]:
-                ok(f"{name:<12} {info['commit'][:12]}  ({info['tag']})")
+                patches = info.get("patches") or []
+                note = ""
+                if patches:
+                    note = f"  + {len(patches)} local patch"
+                    if not info.get("patched"):
+                        note = "  (local patch missing)"
+                ok(f"{name:<12} {info['commit'][:12]}  ({info['tag']}){note}")
                 matches += 1
+                if info.get("patches") and not info.get("patched"):
+                    warn(f"{name:<12} local patches not applied; run: python tools/wp.py deps fetch")
             elif info["present"]:
                 warn(f"{name:<12} at {str(info['head'])[:12]}, lockfile wants {info['commit'][:12]}")
             else:
@@ -422,6 +467,7 @@ def command_deps(args: argparse.Namespace) -> int:
         directory = EXTERNAL_DIR / name
         if report.get(name, {}).get("matches"):
             say(f"  {STYLE.dim}{name}: already at {commit[:12]}{STYLE.end}")
+            apply_dependency_patches(name, directory)
             skipped += 1
             continue
         if not commit or not repository:
@@ -446,6 +492,7 @@ def command_deps(args: argparse.Namespace) -> int:
             die(f"could not fetch {name} from {repository}")
         if run(["git", "-C", str(directory), "checkout", "--quiet", commit]) != 0:
             die(f"could not check out {commit} for {name}")
+        apply_dependency_patches(name, directory)
         fetched += 1
 
     say("")

@@ -33,7 +33,9 @@ std::string stringifyArguments(sol::state& lua, sol::variadic_args args) {
             case sol::type::boolean:
                 text += value.as<bool>() ? "true" : "false";
                 break;
-            case sol::type::nil:
+            case sol::type::lua_nil:
+                // `sol::type::nil` only exists when the platform has no `nil`
+                // macro (Obj-C SDKs define one), so use the always-present name.
                 text += "nil";
                 break;
             default: {

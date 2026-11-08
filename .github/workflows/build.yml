@@ -40,6 +40,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      # CMake with Ninja picks the first compiler on PATH. On windows-latest that
+      # is clang, not MSVC, so ask for the toolchain the docs actually promise.
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Cache dependency checkouts
         uses: actions/cache@v4
         with:
@@ -110,6 +116,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # CMake with Ninja picks the first compiler on PATH. On windows-latest that
+      # is clang, not MSVC, so ask for the toolchain the docs actually promise.
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Linux prerequisites
         if: runner.os == 'Linux'

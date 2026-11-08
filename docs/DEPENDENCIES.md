@@ -70,6 +70,26 @@ gitlinks must land in the same commit.
 - Adding a dependency means: lockfile entry + `NOTICE` line + a `waypoint_dependency_*`
   function in `cmake/WaypointDependencies.cmake` + a row in the table above.
 
+## Local patches
+
+One pin carries a local patch, in tracked form, applied identically by
+`wp.py deps fetch` and by CMake:
+
+| Dependency | Patch | Why |
+| --- | --- | --- |
+| sol2 v3.3.0 | `cmake/patches/sol2-optional-reference-emplace.patch` | `sol::optional<T&>::emplace()` calls a `construct` member the reference specialization does not have. GCC never instantiates it; Clang rejects the whole header, so macOS could not build at all. |
+
+Details and removal instructions: [`cmake/patches/README.md`](../cmake/patches/README.md).
+A patch is only acceptable when the pin cannot compile on a supported compiler;
+if a pin is ever moved, its patches are deleted in the same change.
+
+`python tools/wp.py deps status` shows the count, so an unpatched checkout is
+visible instead of surfacing later as a compiler error:
+
+```
+  OK    sol2         eba86625b707  (v3.3.0)  + 1 local patch
+```
+
 ## Checking state
 
 ```bash

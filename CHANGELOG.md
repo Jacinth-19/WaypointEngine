@@ -13,6 +13,19 @@ All notable changes to Waypoint Engine. Format follows
 - Tests for physics: falling box lands on static ground, substep cap, invalid
   settings, replace-on-re-add.
 - `docs/STATUS.md` separating verified from implemented-but-unverified work.
+- `cmake/patches/`: tracked local patches applied identically by `wp.py deps
+  fetch` and CMake, currently one fix so pinned sol2 v3.3.0 compiles with Clang.
+
+### Fixed
+- Tests no longer assume POSIX absolute paths, so they pass on Windows.
+- Missing `<functional>`/`<string_view>` includes that libstdc++ provided
+  transitively but libc++ and MSVC do not.
+- `sol::type::nil` only exists when the platform defines no `nil` macro; the
+  engine now uses the always-present `sol::type::lua_nil`.
+- CI on Windows now builds with MSVC, which is the toolchain the docs promise,
+  instead of whatever compiler CMake found first on `PATH`.
+- Failing CI jobs now publish their error lines as check-run annotations and a
+  commit comment, because raw job logs are only reachable as an artifact.
 
 ## [0.1.0] — 2026-11-08
 
