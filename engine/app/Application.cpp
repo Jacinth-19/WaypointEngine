@@ -194,6 +194,7 @@ int Application::run(const ApplicationConfig& config) {
 
     auto previousTime = std::chrono::steady_clock::now();
     std::size_t frames = 0;
+    std::size_t drawsSubmitted = 0;
     bool running = true;
     while (running) {
         const auto now = std::chrono::steady_clock::now();
@@ -248,7 +249,7 @@ int Application::run(const ApplicationConfig& config) {
         f32 fieldOfView = 60.0f;
         const Transform camera = primaryCameraTransform(app.scene, fieldOfView);
         app.renderer.beginFrame(camera, fieldOfView);
-        app.renderer.drawWorld(app.scene.world());
+        drawsSubmitted += app.renderer.drawWorld(app.scene.world());
         app.renderer.endFrame();
 
         ++frames;
@@ -265,18 +266,32 @@ int Application::run(const ApplicationConfig& config) {
     app.physics.shutdown();
 #endif
     const std::string backend = app.renderer.backendName();
+    const bool shadersLoaded = app.renderer.shadersLoaded();
     app.renderer.shutdown();
     app.window.destroy();
     SdlWindow::shutdownSubsystem();
 
     if (config.exitAfterFirstFrame) {
-        // A smoke test is only worth anything if it fails when nothing was drawn.
-        if (frames == 0) {
+        // A smoke test is only worth anything if it fails when nothing was drawn:
+        // a window that opened and a frame that presented but drew no geometry
+        // would look identical in the exit code otherwise.
+        bool passed = frames > 0;
+        if (!passed) {
             Log::error("Smoke test failed: the loop exited without submitting a frame.");
-            return 1;
+        } else if (!shadersLoaded) {
+            Log::error("Smoke test failed: no shader program was created, so nothing "
+                       "could be drawn. Expected compiled .bin files in '{}'.",
+                       FileSystem::genericString(findShaderDirectory()));
+            passed = false;
+        } else if (drawsSubmitted == 0) {
+            Log::error("Smoke test failed: the frame presented but submitted no draws.");
+            passed = false;
         }
-        Log::info("Smoke test passed: {} frame(s) submitted through the {} backend.",
-                  frames, backend);
+        if (passed) {
+            Log::info("Smoke test passed: {} frame(s), {} draw call(s), {} backend, shaders loaded.",
+                      frames, drawsSubmitted, backend);
+        }
+        return passed ? 0 : 1;
     }
     Log::info("Goodbye.");
     return 0;

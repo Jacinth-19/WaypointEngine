@@ -28,7 +28,7 @@ authority for those.
 | Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
 
-### CI (GitHub Actions, commit `219958c`)
+### CI (GitHub Actions, commit `523e369`)
 
 Every job below ran to completion on GitHub's own runners:
 
@@ -40,6 +40,7 @@ Every job below ran to completion on GitHub's own runners:
 | Desktop runtime | ubuntu-latest — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled | **pass** |
 | Desktop runtime | macos-latest — spirv/glsl/essl/metal | **pass** |
 | Desktop runtime | windows-latest — spirv/glsl/essl/dxbc | **pass** |
+| **One frame rendered** | all three desktop jobs: `waypoint samples/hello_cube --smoke-test` with `WAYPOINT_RENDERER=noop` and `SDL_VIDEODRIVER=dummy` | **pass** — a window was created, shader programs built, draw calls submitted and the frame presented, verified by the player exiting 0 and logging the backend |
 | Editor (Qt 6) | ubuntu-latest — build + offscreen start | **pass** |
 
 ## Implemented but unverified
@@ -49,7 +50,8 @@ CI, and is not promised to work:
 
 | Area | Why unverified |
 | --- | --- |
-| bgfx window and first frame | `waypoint <project> --smoke-test` runs one frame through bgfx's noop backend in CI (see the workflow); no runner has a GPU, so no pixel has ever been seen |
+| Pixels on a real GPU | the frame is proven through bgfx's noop backend, which validates the submit path but rasterises nothing. No CI runner has a GPU, and nobody has looked at the cube on a machine that does. |
+| A windowed session | the smoke test uses SDL's dummy video driver; no window has ever been mapped on a real desktop |
 | Runtime on Windows/macOS | the desktop jobs build and link the runtime, they do not start it |
 | Qt 6 editor interaction | CI starts the editor offscreen and checks it does not crash; nobody has clicked a button |
 | `wp.py export` output | needs a real runtime binary and is refused under headless; packaging is unverified |
