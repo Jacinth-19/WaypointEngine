@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <doctest/doctest.h>
 
+#include <functional>
 #include <set>
 #include <string>
 #include <vector>
@@ -89,12 +90,16 @@ TEST_CASE("FileSystem: write, read and directory creation") {
 }
 
 TEST_CASE("FileSystem: path helpers behave the same on every platform") {
-    const std::filesystem::path joined = FileSystem::joinPath("/tmp/game", "scenes/main.json");
-    CHECK(joined.generic_string() == "/tmp/game/scenes/main.json");
+    const std::filesystem::path joined = FileSystem::joinPath("game", "scenes/main.json");
+    CHECK(joined.generic_string() == "game/scenes/main.json");
     CHECK(FileSystem::genericString(joined).find('\\') == std::string::npos);
 
-    // An absolute second argument wins over the base.
-    CHECK(FileSystem::joinPath("/tmp/game", "/etc/passwd").generic_string() == "/etc/passwd");
+    // An absolute second argument wins over the base. Built from the platform's
+    // own temp folder: "/etc/passwd" is *not* absolute on Windows, which is
+    // exactly the trap this test used to fall into.
+    const std::filesystem::path absolutePath =
+        std::filesystem::absolute(std::filesystem::temp_directory_path() / "waypoint_abs.txt");
+    CHECK(FileSystem::joinPath("game", absolutePath.generic_string()) == absolutePath);
 
     CHECK(FileSystem::parentDirectory("game/scenes/main.json").generic_string() ==
           "game/scenes");

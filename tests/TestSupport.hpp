@@ -3,7 +3,9 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <string>
+#include <string_view>
 
 namespace waypoint::test {
 

@@ -11,6 +11,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Needed so a failing job can post its own error lines as a commit comment.
+permissions:
+  contents: write
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -53,7 +57,40 @@ jobs:
         run: python tools/wp.py doctor
 
       - name: Configure, build and test (headless)
-        run: python tools/wp.py test
+        shell: bash
+        run: |
+          set -o pipefail
+          WAYPOINT_HEADLESS_BUILD=1 python tools/wp.py test 2>&1 | tee build.log
+
+      # GitHub's raw job logs are only reachable as an artifact download, which is
+      # useless when you are debugging from the API or a phone. On failure, turn
+      # the interesting lines of build.log into check-run annotations (always
+      # visible in the UI and via the REST API) plus a commit comment.
+      - name: Report failure lines
+        if: failure()
+        shell: bash
+        run: |
+          excerpt=build-excerpt.txt
+          {
+            echo "### core ${{ matrix.os }} - headless build + tests"
+            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|not found|No such file" build.log \
+              | grep -vE "0 errors?|error-reporting" | head -60 || true
+          } > "$excerpt"
+          if [ ! -s "$excerpt" ]; then
+            tail -n 80 build.log >> "$excerpt"
+          fi
+          head -10 "$excerpt" | while IFS= read -r line; do
+            safe=${line//'%'/'%25'}
+            safe=${safe//$'\r'/}
+            safe=${safe//$'\n'/'%0A'}
+            echo "::error::${safe}"
+          done
+          if command -v gh >/dev/null 2>&1 && [ -n "${GH_TOKEN:-}" ]; then
+            body=$(printf 'CI failure - %s - %s\n\n```\n%s\n```\n' "core ${{ matrix.os }}" "headless build + tests" "$(cat "$excerpt")")
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body="$body" || true
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   desktop:
     name: Desktop runtime (${{ matrix.os }})
@@ -94,7 +131,40 @@ jobs:
         run: python tools/wp.py deps fetch
 
       - name: Build runtime (bgfx + SDL3 + shaderc + Jolt + Lua)
-        run: python tools/wp.py build
+        shell: bash
+        run: |
+          set -o pipefail
+          python tools/wp.py build 2>&1 | tee build.log
+
+      # GitHub's raw job logs are only reachable as an artifact download, which is
+      # useless when you are debugging from the API or a phone. On failure, turn
+      # the interesting lines of build.log into check-run annotations (always
+      # visible in the UI and via the REST API) plus a commit comment.
+      - name: Report failure lines
+        if: failure()
+        shell: bash
+        run: |
+          excerpt=build-excerpt.txt
+          {
+            echo "### desktop ${{ matrix.os }} - runtime build"
+            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|not found|No such file" build.log \
+              | grep -vE "0 errors?|error-reporting" | head -60 || true
+          } > "$excerpt"
+          if [ ! -s "$excerpt" ]; then
+            tail -n 80 build.log >> "$excerpt"
+          fi
+          head -10 "$excerpt" | while IFS= read -r line; do
+            safe=${line//'%'/'%25'}
+            safe=${safe//$'\r'/}
+            safe=${safe//$'\n'/'%0A'}
+            echo "::error::${safe}"
+          done
+          if command -v gh >/dev/null 2>&1 && [ -n "${GH_TOKEN:-}" ]; then
+            body=$(printf 'CI failure - %s - %s\n\n```\n%s\n```\n' "desktop ${{ matrix.os }}" "runtime build" "$(cat "$excerpt")")
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body="$body" || true
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Upload build logs on failure
         if: failure()

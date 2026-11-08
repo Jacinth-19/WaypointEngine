@@ -70,8 +70,11 @@ TEST_CASE("Project: load resolves paths under the project folder") {
     CHECK(project->startScenePath().parent_path().filename() == "scenes");
     CHECK(project->scriptEntryPath().parent_path().filename() == "scripts");
 
-    // Absolute paths are honoured as-is.
-    CHECK(project->resolve("/tmp/elsewhere.lua").generic_string() == "/tmp/elsewhere.lua");
+    // Absolute paths are honoured as-is (built portably: a Windows absolute
+    // path needs a drive letter, so "/tmp/x" would not be absolute there).
+    const std::filesystem::path absoluteScript =
+        std::filesystem::absolute(std::filesystem::temp_directory_path() / "elsewhere.lua");
+    CHECK(project->resolve(absoluteScript.generic_string()) == absoluteScript);
 }
 
 TEST_CASE("Project: saveProject round-trips edited fields") {
