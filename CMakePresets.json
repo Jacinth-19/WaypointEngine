@@ -1,0 +1,73 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default (debug-friendly, all subsystems)",
+      "binaryDir": "${sourceDir}/build/default",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "WAYPOINT_BUILD_RUNTIME": "ON",
+        "WAYPOINT_BUILD_TESTS": "ON",
+        "WAYPOINT_ENABLE_RENDER": "ON",
+        "WAYPOINT_ENABLE_PHYSICS": "ON",
+        "WAYPOINT_ENABLE_SCRIPTING": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (optimised, no editor)",
+      "binaryDir": "${sourceDir}/build/release",
+      "generator": "Ninja",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "WAYPOINT_BUILD_EDITOR": "OFF"
+      }
+    },
+    {
+      "name": "editor",
+      "displayName": "Editor (Qt 6 Widgets)",
+      "binaryDir": "${sourceDir}/build/editor",
+      "generator": "Ninja",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "WAYPOINT_BUILD_EDITOR": "ON"
+      }
+    },
+    {
+      "name": "headless",
+      "displayName": "Headless (no GPU, no window, no Qt; for containers and CI tests)",
+      "binaryDir": "${sourceDir}/build/headless",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "WAYPOINT_HEADLESS_BUILD": "ON",
+        "WAYPOINT_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "editor", "configurePreset": "editor" },
+    { "name": "headless", "configurePreset": "headless" }
+  ],
+  "testPresets": [
+    {
+      "name": "headless",
+      "configurePreset": "headless",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    }
+  ]
+}

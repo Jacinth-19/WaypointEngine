@@ -1,0 +1,94 @@
+{
+  "name": "__PROJECT_NAME__",
+  "engineVersion": "0.1.0",
+  "entities": [
+    {
+      "id": "6a1f2b90-3c4d-4e5f-8a7b-1c2d3e4f5061",
+      "name": "Camera",
+      "transform": {
+        "position": [0.0, 3.0, 10.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": {
+        "camera": {
+          "fieldOfView": 60.0,
+          "nearClip": 0.1,
+          "farClip": 1000.0,
+          "primary": true
+        },
+        "flyCamera": {
+          "moveSpeed": 6.0,
+          "boostMultiplier": 4.0,
+          "lookSensitivity": 0.12,
+          "yaw": 0.0,
+          "pitch": 0.0
+        }
+      }
+    },
+    {
+      "id": "9c2e4d31-7a8b-4c6d-9e0f-2a3b4c5d6072",
+      "name": "Sun",
+      "transform": {
+        "position": [0.0, 12.0, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": {
+        "directionalLight": {
+          "direction": [-0.4, -1.0, -0.3],
+          "color": [1.0, 0.97, 0.92],
+          "intensity": 1.0,
+          "castShadows": true
+        }
+      }
+    },
+    {
+      "id": "3b5a6c72-1d9e-4f80-b1c2-3d4e5f607183",
+      "name": "Ground",
+      "transform": {
+        "position": [0.0, -0.5, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [20.0, 0.1, 20.0]
+      },
+      "components": {
+        "meshRenderer": {
+          "mesh": "builtin:cube",
+          "color": [0.32, 0.34, 0.36],
+          "castShadows": false
+        },
+        "rigidBody": {
+          "motion": "static",
+          "halfExtents": [0.5, 0.5, 0.5],
+          "mass": 1.0,
+          "useGravity": false
+        }
+      }
+    },
+    {
+      "id": "f7e8d9c0-2b3a-4c5d-8e9f-0a1b2c3d4e94",
+      "name": "Cube",
+      "transform": {
+        "position": [0.0, 6.0, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": {
+        "meshRenderer": {
+          "mesh": "builtin:cube",
+          "color": [0.92, 0.55, 0.22],
+          "castShadows": true
+        },
+        "rigidBody": {
+          "motion": "dynamic",
+          "halfExtents": [0.5, 0.5, 0.5],
+          "mass": 1.0,
+          "useGravity": true
+        },
+        "script": {
+          "path": "scripts/main.lua"
+        }
+      }
+    }
+  ]
+}

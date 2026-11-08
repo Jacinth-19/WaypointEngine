@@ -1,0 +1,35 @@
+# Build output
+build/
+dist/
+out/
+cmake-build-*/
+
+# Dependency checkouts (restored by `python tools/wp.py deps fetch`)
+external/*
+!external/README.md
+!external/dependencies.lock.json
+
+# FetchContent / tool caches
+.cache/
+.waypoint-tools/
+.waypoint-deps/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors and OS noise
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local CMake user presets and generated files
+CMakeUserPresets.json
+compile_commands.json
+
+# Exported packages and screenshots produced while testing
+*.log

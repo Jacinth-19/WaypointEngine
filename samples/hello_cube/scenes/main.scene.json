@@ -1,0 +1,116 @@
+{
+  "name": "hello_cube",
+  "engineVersion": "0.1.0",
+  "entities": [
+    {
+      "id": "0b1c2d3e-4f50-4617-8899-aabbccddee01",
+      "name": "Camera",
+      "transform": {
+        "position": [0.0, 3.5, 10.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": {
+        "camera": {
+          "fieldOfView": 60.0,
+          "nearClip": 0.1,
+          "farClip": 1000.0,
+          "primary": true
+        },
+        "flyCamera": {
+          "moveSpeed": 6.0,
+          "boostMultiplier": 4.0,
+          "lookSensitivity": 0.12,
+          "yaw": 0.0,
+          "pitch": 0.0
+        }
+      }
+    },
+    {
+      "id": "0b1c2d3e-4f50-4617-8899-aabbccddee02",
+      "name": "Sun",
+      "transform": {
+        "position": [0.0, 12.0, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "components": {
+        "directionalLight": {
+          "direction": [-0.45, -1.0, -0.35],
+          "color": [1.0, 0.96, 0.9],
+          "intensity": 1.0,
+          "castShadows": true
+        }
+      }
+    },
+    {
+      "id": "0b1c2d3e-4f50-4617-8899-aabbccddee03",
+      "name": "Ground",
+      "transform": {
+        "position": [0.0, -0.5, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [24.0, 0.1, 24.0]
+      },
+      "components": {
+        "meshRenderer": {
+          "mesh": "builtin:cube",
+          "color": [0.30, 0.32, 0.35],
+          "castShadows": false
+        },
+        "rigidBody": {
+          "motion": "static",
+          "halfExtents": [0.5, 0.5, 0.5],
+          "mass": 1.0,
+          "useGravity": false
+        }
+      }
+    },
+    {
+      "id": "0b1c2d3e-4f50-4617-8899-aabbccddee04",
+      "name": "Falling Cube",
+      "transform": {
+        "position": [0.0, 8.0, 0.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [1.2, 1.2, 1.2]
+      },
+      "components": {
+        "meshRenderer": {
+          "mesh": "builtin:cube",
+          "color": [0.95, 0.55, 0.20],
+          "castShadows": true
+        },
+        "rigidBody": {
+          "motion": "dynamic",
+          "halfExtents": [0.6, 0.6, 0.6],
+          "mass": 1.0,
+          "useGravity": true
+        },
+        "script": {
+          "path": "scripts/main.lua"
+        }
+      }
+    },
+    {
+      "id": "0b1c2d3e-4f50-4617-8899-aabbccddee05",
+      "name": "Step",
+      "transform": {
+        "position": [3.0, 0.25, 2.0],
+        "rotation": [1.0, 0.0, 0.0, 0.0],
+        "scale": [2.0, 0.5, 2.0]
+      },
+      "components": {
+        "meshRenderer": {
+          "mesh": "builtin:cube",
+          "color": [0.55, 0.65, 0.80],
+          "castShadows": true
+        },
+        "rigidBody": {
+          "motion": "static",
+          "halfExtents": [1.0, 0.25, 1.0],
+          "mass": 1.0,
+          "useGravity": false
+        }
+      }
+    }
+  ]
+}

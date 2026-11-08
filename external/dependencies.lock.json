@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "note": "Waypoint Engine dependency pins. This file is the single source of truth for CMake, tools/wp.py and docs/DEPENDENCIES.md. Never edit a pin without re-running `python tools/wp.py deps status`.",
+  "cacheDirectory": ".cache/waypoint-deps",
+  "dependencies": {
+    "entt": {
+      "repository": "https://github.com/skypjack/entt.git",
+      "tag": "v3.15.0",
+      "commit": "d4014c74dc3793aba95ae354d6e23a026c2796db",
+      "license": "MIT",
+      "purpose": "Entity component system"
+    },
+    "glm": {
+      "repository": "https://github.com/g-truc/glm.git",
+      "tag": "1.0.1",
+      "commit": "0af55ccecd98d4e5a8d1fad7de25ba429d60e863",
+      "license": "MIT",
+      "purpose": "Vector, matrix and quaternion maths"
+    },
+    "json": {
+      "repository": "https://github.com/nlohmann/json.git",
+      "tag": "v3.12.0",
+      "commit": "55f93686c01528224f448c19128836e7df245f72",
+      "license": "MIT",
+      "purpose": "Scene and project JSON"
+    },
+    "spdlog": {
+      "repository": "https://github.com/gabime/spdlog.git",
+      "tag": "v1.15.3",
+      "commit": "6fa36017cfd5731d617e1a934f0e5ea9c4445b13",
+      "license": "MIT",
+      "purpose": "Logging"
+    },
+    "doctest": {
+      "repository": "https://github.com/doctest/doctest.git",
+      "tag": "v2.4.12",
+      "commit": "1da23a3e8119ec5cce4f9388e91b065e20bf06f5",
+      "license": "MIT",
+      "purpose": "Unit tests"
+    },
+    "sdl": {
+      "repository": "https://github.com/libsdl-org/SDL.git",
+      "tag": "release-3.2.10",
+      "commit": "877399b2b2cf21e67554ed9046410f268ce1d1b2",
+      "license": "Zlib",
+      "purpose": "Window, keyboard and mouse"
+    },
+    "lua": {
+      "repository": "https://github.com/lua/lua.git",
+      "tag": "v5.4.7",
+      "commit": "1ab3208a1fceb12fca8f24ba57d6e13c5bff15e3",
+      "license": "MIT",
+      "purpose": "Scripting language runtime"
+    },
+    "sol2": {
+      "repository": "https://github.com/ThePhD/sol2.git",
+      "tag": "v3.3.0",
+      "commit": "eba86625b707e3c8c99bbfc4624e51f42dc9e561",
+      "license": "MIT",
+      "purpose": "C++ <-> Lua bindings"
+    },
+    "jolt": {
+      "repository": "https://github.com/jrouwe/JoltPhysics.git",
+      "tag": "v5.3.0",
+      "commit": "0373ec0dd762e4bc2f6acdb08371ee84fa23c6db",
+      "license": "MIT",
+      "purpose": "Rigid body physics"
+    },
+    "bgfx_cmake": {
+      "repository": "https://github.com/bkaradzic/bgfx.cmake.git",
+      "tag": "v1.167.9614-607",
+      "commit": "947910c474d6ed7e34bf0152bff611ea54895e41",
+      "license": "CC0-1.0",
+      "purpose": "CMake build of bgfx (generator only)"
+    },
+    "bgfx": {
+      "repository": "https://github.com/bkaradzic/bgfx.git",
+      "tag": "master",
+      "commit": "fbceed8df882df4f13d629ee5c4aa4a096a1addf",
+      "license": "BSD-2-Clause",
+      "purpose": "Rendering API abstraction"
+    },
+    "bx": {
+      "repository": "https://github.com/bkaradzic/bx.git",
+      "tag": "master",
+      "commit": "f859f66472aabacc2847e7d7b04168e7146e9f98",
+      "license": "BSD-2-Clause",
+      "purpose": "bgfx base library (math, allocators)"
+    },
+    "bimg": {
+      "repository": "https://github.com/bkaradzic/bimg.git",
+      "tag": "master",
+      "commit": "388a5e637c63e472158c940317c68c735bca4795",
+      "license": "BSD-2-Clause",
+      "purpose": "bgfx image loading and texture encoding"
+    },
+    "stb": {
+      "repository": "https://github.com/nothings/stb.git",
+      "tag": "master",
+      "commit": "4e9b368bfc071e97206ea5c6adba68dd0cbf8897",
+      "license": "MIT",
+      "purpose": "stb_image / stb_image_write"
+    },
+    "tinygltf": {
+      "repository": "https://github.com/syoyo/tinygltf.git",
+      "tag": "v2.9.5",
+      "commit": "b956fa3e9deeb7ee7f0f22c08bda9b3a684a98dc",
+      "license": "MIT",
+      "purpose": "glTF 2.0 model loading"
+    }
+  }
+}

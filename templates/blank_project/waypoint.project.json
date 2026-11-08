@@ -1,0 +1,6 @@
+{
+  "name": "__PROJECT_NAME__",
+  "engineVersion": "0.1.0",
+  "startScene": "scenes/main.scene.json",
+  "scriptEntry": "scripts/main.lua"
+}
