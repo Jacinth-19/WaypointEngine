@@ -17,6 +17,10 @@ All notable changes to Waypoint Engine. Format follows
   fetch` and CMake, currently one fix so pinned sol2 v3.3.0 compiles with Clang.
 
 ### Fixed
+- One CRT for the whole build (`CMAKE_MSVC_RUNTIME_LIBRARY`), because Jolt ships
+  the static MSVC runtime and mixing runtimes is an LNK2038 link error.
+- Shader profiles are chosen per platform explicitly; dxil (D3D12) is opt-in via
+  `WAYPOINT_COMPILE_DXIL` because DXC rejects the vertex shader's varying write.
 - Tests no longer assume POSIX absolute paths, so they pass on Windows.
 - Missing `<functional>`/`<string_view>` includes that libstdc++ provided
   transitively but libc++ and MSVC do not.

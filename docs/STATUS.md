@@ -25,7 +25,7 @@ Environment: Debian 12 container, gcc 12.2, CMake 4.4.4, Ninja 1.13, Python
 | Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
 
-### CI matrix (GitHub Actions, run on commit `e32d249`)
+### CI matrix (GitHub Actions, run on commit `6d044ef`)
 
 | Job | Result |
 | --- | --- |
@@ -34,8 +34,8 @@ Environment: Debian 12 container, gcc 12.2, CMake 4.4.4, Ninja 1.13, Python
 | Desktop runtime (ubuntu-latest) — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled to `.bin` | **pass** |
 | Desktop runtime (macos-latest) — same, metal/spirv/glsl/essl profiles | **pass** |
 | Editor (Qt 6) | **pass** |
-| Core + tests (windows-latest, MSVC) | fail: `<ostream>`-less `string_view` streaming in a test (fixed since) |
-| Desktop runtime (windows-latest) | fail: HLSL (dxil) shader compile |
+| Core + tests (windows-latest, MSVC) | compiles and runs the suite, then fails to link: Jolt ships the static MSVC runtime, the project used the DLL one (LNK2038). Fixed since by building everything with the static runtime. |
+| Desktop runtime (windows-latest) | fail: HLSL (dxil) shader compile, see below |
 
 ## Implemented but unverified
 
@@ -45,7 +45,7 @@ some have never been configured at all:
 | Area | Why unverified |
 | --- | --- |
 | bgfx window + first frame | the CI desktop jobs link and compile shaders, but no job opens a window or renders a frame — there is no GPU on the runners and no smoke run yet |
-| Runtime run on Windows | Windows desktop job still fails to compile the dxil (D3D12) shader profile |
+| Runtime run on Windows | dxil (D3D12) shader bytecode | Not built at all by default now: DXC rejects our vertex shader with a spurious `hlsl.hlsl:624:101: error: expression result unused [-Werror,-Wunused-value]` on the varying write, and the same shader compiles for dxbc/dxil in the fragment stage. dxbc (D3D11, the default Windows backend) is compiled and linked; `WAYPOINT_RENDERER=d3d12` therefore has no shaders until this is solved. Enable the attempt with `-DWAYPOINT_COMPILE_DXIL=ON`. |
 | Qt 6 editor *running* | Qt 6 is not installed here; CI builds and starts the editor offscreen, this environment cannot |
 | Windows core tests passing | last run failed at compile (see matrix), so no Windows test run has completed |
 | Android NDK build | not installed |

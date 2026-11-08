@@ -23,6 +23,15 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
 endif()
 
+# One C runtime for the whole build. MSVC defaults to the DLL runtime while Jolt
+# hard-codes the static one, and mixing them is an LNK2038 link error; agreeing on
+# the static runtime also keeps exported games free of the VC++ redistributable.
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING
+        "MSVC C runtime library" FORCE)
+    set(USE_STATIC_MSVC_RUNTIME_LIBRARY ON CACHE BOOL "Jolt's copy of the same switch" FORCE)
+endif()
+
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)

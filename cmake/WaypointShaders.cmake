@@ -56,12 +56,33 @@ function(waypoint_attach_shaders target)
     endif()
     set(include_dirs "${bgfx_dir}/src" "${WAYPOINT_SHADER_SOURCE_DIR}")
 
+    # Which backends to bake bytecode for. bgfx.cmake's defaults include dxil on
+    # Windows, but that profile goes GLSL -> SPIR-V -> spirv-cross -> DXC and DXC
+    # rejects the vertex shader with a spurious
+    #   "hlsl.hlsl:624:101: error: expression result unused [-Werror,-Wunused-value]"
+    # on the varying write. dxbc (D3D11, the default Windows backend) covers
+    # Windows; dxil is only needed by the D3D12 backend, which is not validated
+    # yet. See docs/STATUS.md. Turn it back on with -DWAYPOINT_COMPILE_DXIL=ON
+    # once that path is checked on real hardware.
+    option(WAYPOINT_COMPILE_DXIL "Compile dxil shaders for the D3D12 backend" OFF)
+    if(WIN32)
+        set(profiles spirv glsl essl dxbc)
+        if(WAYPOINT_COMPILE_DXIL)
+            list(APPEND profiles dxil)
+        endif()
+    elseif(APPLE)
+        set(profiles spirv glsl essl metal)
+    else()
+        set(profiles spirv glsl essl)
+    endif()
+
     bgfx_compile_shaders(
         TYPE VERTEX
         SHADERS "${WAYPOINT_SHADER_SOURCE_DIR}/vs_basic.sc"
         VARYING_DEF "${varying_def}"
         OUTPUT_DIR "${WAYPOINT_SHADER_OUTPUT_DIR}"
         OUT_FILES_VAR WAYPOINT_VERTEX_SHADER_FILES
+        PROFILES ${profiles}
         INCLUDE_DIRS ${include_dirs}
     )
     bgfx_compile_shaders(
@@ -70,6 +91,7 @@ function(waypoint_attach_shaders target)
         VARYING_DEF "${varying_def}"
         OUTPUT_DIR "${WAYPOINT_SHADER_OUTPUT_DIR}"
         OUT_FILES_VAR WAYPOINT_FRAGMENT_SHADER_FILES
+        PROFILES ${profiles}
         INCLUDE_DIRS ${include_dirs}
     )
 
