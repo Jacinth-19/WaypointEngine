@@ -82,9 +82,14 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### core ${{ matrix.os }} - headless build + tests"
-            # The lines that mention an error, minus CMake's configure chatter.
-            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
-              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -15 | cut -c1-800 || true
+            # Compiler diagnostics need the colon: a bare "error" also matches
+            # paths like SDL_error.c, which is how a green build once got reported
+            # as a failure while the real error stayed invisible.
+            grep -nE "error:|fatal error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file|Smoke test failed" build.log smoke.log 2>/dev/null \
+              | grep -vE "^[^:]+:[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -15 | cut -c1-800 || true
+            # Whatever failed, the last thing each log said is usually the reason.
+            echo "--- tail of smoke.log ---"
+            tail -n 25 smoke.log 2>/dev/null | cut -c1-800
             # ...plus the block after the first FAILED:, because a tool like
             # shaderc prints its complaint underneath the command that failed
             # and the word "error" may appear nowhere in it.
@@ -95,7 +100,9 @@ jobs:
             fi
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
-            tail -n 80 build.log >> "$excerpt"
+            tail -n 40 build.log >> "$excerpt"
+            echo "--- tail of smoke.log ---" >> "$excerpt"
+            tail -n 25 smoke.log >> "$excerpt"
           fi
           head -10 "$excerpt" | while IFS= read -r line; do
             safe=${line//'%'/'%25'}
@@ -173,7 +180,11 @@ jobs:
         run: |
           BIN=build/default/bin/waypoint
           [ -f "$BIN.exe" ] && BIN="$BIN.exe"
-          WAYPOINT_RENDERER=noop SDL_VIDEODRIVER=dummy "$BIN" samples/hello_cube --smoke-test
+          # Tee, but report the player's exit status rather than tee's: a silent
+          # pipe would turn a failed smoke test into a green job.
+          WAYPOINT_RENDERER=noop SDL_VIDEODRIVER=dummy "$BIN" samples/hello_cube \
+            --smoke-test 2>&1 | tee smoke.log
+          exit "${PIPESTATUS[0]}"
 
       - name: Report failure lines
         if: failure()
@@ -183,9 +194,14 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### desktop ${{ matrix.os }} - runtime build"
-            # The lines that mention an error, minus CMake's configure chatter.
-            grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
-              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -15 | cut -c1-800 || true
+            # Compiler diagnostics need the colon: a bare "error" also matches
+            # paths like SDL_error.c, which is how a green build once got reported
+            # as a failure while the real error stayed invisible.
+            grep -nE "error:|fatal error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file|Smoke test failed" build.log smoke.log 2>/dev/null \
+              | grep -vE "^[^:]+:[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -15 | cut -c1-800 || true
+            # Whatever failed, the last thing each log said is usually the reason.
+            echo "--- tail of smoke.log ---"
+            tail -n 25 smoke.log 2>/dev/null | cut -c1-800
             # ...plus the block after the first FAILED:, because a tool like
             # shaderc prints its complaint underneath the command that failed
             # and the word "error" may appear nowhere in it.
@@ -196,7 +212,9 @@ jobs:
             fi
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
-            tail -n 80 build.log >> "$excerpt"
+            tail -n 40 build.log >> "$excerpt"
+            echo "--- tail of smoke.log ---" >> "$excerpt"
+            tail -n 25 smoke.log >> "$excerpt"
           fi
           head -10 "$excerpt" | while IFS= read -r line; do
             safe=${line//'%'/'%25'}
