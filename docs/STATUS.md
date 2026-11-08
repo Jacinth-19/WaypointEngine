@@ -28,7 +28,7 @@ authority for those.
 | Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
 
-### CI (GitHub Actions, commit `fba8924`)
+### CI (GitHub Actions, commit `98f5928`)
 
 Every job below ran to completion on GitHub's own runners:
 
@@ -57,6 +57,7 @@ CI, and is not promised to work:
 | Runtime on Windows/macOS | the desktop jobs build, link *and* run the runtime (one noop frame), but nothing interactive has been tried |
 | Qt 6 editor interaction | CI starts the editor offscreen and checks it does not crash; nobody has clicked a button |
 | `wp.py export` output | needs a real runtime binary and is refused under headless; packaging is unverified |
+| `--screenshot` capture | the writer is tested (write, decode, compare bytes) but no GPU has ever delivered pixels to it; noop has no back buffer and says so |
 | Android NDK build | workflow exists but has never been run |
 | dxil / D3D12 shaders | not compiled by default (see below) |
 
