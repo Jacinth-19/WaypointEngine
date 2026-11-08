@@ -17,6 +17,14 @@ function(waypoint_set_output_directories)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" PARENT_SCOPE)
 endfunction()
 
+# Every translation unit in the build - ours and third-party - is UTF-8, so
+# tell MSVC once, globally. spdlog's bundled fmt static_asserts outright
+# ("Unicode support requires compiling with /utf-8") under MSVC without it, and
+# that library is compiled here, not linked from a package.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 if(MSVC)
     target_compile_options(
         waypoint_compiler_options
