@@ -49,7 +49,7 @@ CI, and is not promised to work:
 
 | Area | Why unverified |
 | --- | --- |
-| bgfx window and first frame | no CI runner has a GPU, and nothing yet asserts that a frame was produced; this is the next milestone |
+| bgfx window and first frame | `waypoint <project> --smoke-test` runs one frame through bgfx's noop backend in CI (see the workflow); no runner has a GPU, so no pixel has ever been seen |
 | Runtime on Windows/macOS | the desktop jobs build and link the runtime, they do not start it |
 | Qt 6 editor interaction | CI starts the editor offscreen and checks it does not crash; nobody has clicked a button |
 | `wp.py export` output | needs a real runtime binary and is refused under headless; packaging is unverified |

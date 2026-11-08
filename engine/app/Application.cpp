@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
+#include <string>
 #include <utility>
 
 #include "core/FileSystem.hpp"
@@ -191,6 +193,7 @@ int Application::run(const ApplicationConfig& config) {
         "to look, Escape quits.");
 
     auto previousTime = std::chrono::steady_clock::now();
+    std::size_t frames = 0;
     bool running = true;
     while (running) {
         const auto now = std::chrono::steady_clock::now();
@@ -248,8 +251,8 @@ int Application::run(const ApplicationConfig& config) {
         app.renderer.drawWorld(app.scene.world());
         app.renderer.endFrame();
 
+        ++frames;
         if (config.exitAfterFirstFrame) {
-            Log::info("exitAfterFirstFrame is set: stopping after one frame");
             running = false;
         }
     }
@@ -261,9 +264,20 @@ int Application::run(const ApplicationConfig& config) {
 #if WAYPOINT_HAS_PHYSICS
     app.physics.shutdown();
 #endif
+    const std::string backend = app.renderer.backendName();
     app.renderer.shutdown();
     app.window.destroy();
     SdlWindow::shutdownSubsystem();
+
+    if (config.exitAfterFirstFrame) {
+        // A smoke test is only worth anything if it fails when nothing was drawn.
+        if (frames == 0) {
+            Log::error("Smoke test failed: the loop exited without submitting a frame.");
+            return 1;
+        }
+        Log::info("Smoke test passed: {} frame(s) submitted through the {} backend.",
+                  frames, backend);
+    }
     Log::info("Goodbye.");
     return 0;
 }

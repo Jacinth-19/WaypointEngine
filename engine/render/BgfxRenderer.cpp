@@ -138,6 +138,10 @@ bgfx::RendererType::Enum parseRendererName(const std::string& name) {
     if (lower == "d3d11") return bgfx::RendererType::Direct3D11;
     if (lower == "d3d12") return bgfx::RendererType::Direct3D12;
     if (lower == "metal") return bgfx::RendererType::Metal;
+    // Noop validates the whole submit path - program creation, draw calls, frame
+    // bracketing - without touching a GPU. It is how CI proves a frame runs on a
+    // machine that has no display.
+    if (lower == "noop" || lower == "headless") return bgfx::RendererType::Noop;
     Log::warn("Unknown WAYPOINT_RENDERER '{}'; letting bgfx choose", name);
     return bgfx::RendererType::Count;
 }

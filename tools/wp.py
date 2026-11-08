@@ -589,9 +589,20 @@ def command_run(args: argparse.Namespace) -> int:
     if not binary:
         die(f"could not find the waypoint executable in {build_dir_for(preset)}")
 
+    arguments = [str(binary), str(project_dir)]
+    environment = None
+    if args.smoke_test:
+        # Prove the frame loop on a machine with no display: bgfx's noop backend
+        # runs the real submit path (create programs, issue draws, present) and
+        # SDL's dummy video driver supplies a window without an X server.
+        arguments.append("--smoke-test")
+        environment = dict(os.environ)
+        environment.setdefault("WAYPOINT_RENDERER", "noop")
+        environment.setdefault("SDL_VIDEODRIVER", "dummy")
+
     step(f"Running '{manifest.get('name', project_dir.name)}'")
-    say(f"{STYLE.dim}$ {binary} {project_dir}{STYLE.end}")
-    return run([str(binary), str(project_dir)], cwd=binary.parent)
+    say(f"{STYLE.dim}$ {' '.join(arguments)}{STYLE.end}")
+    return run(arguments, cwd=binary.parent, env=environment)
 
 
 def platform_tag() -> str:
@@ -724,6 +735,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd = sub.add_parser("run", help="run a project in the waypoint player")
     run_cmd.add_argument("project", help="project folder or name")
     run_cmd.add_argument("--release", action="store_true", help="use the release runtime")
+    run_cmd.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="render one frame with the noop backend and exit (used by CI)",
+    )
     run_cmd.set_defaults(func=command_run)
 
     test_cmd = sub.add_parser("test", help="build and run the unit tests")

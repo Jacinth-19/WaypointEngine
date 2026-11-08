@@ -4,6 +4,7 @@
 // Usage:
 //   waypoint <project-folder>
 //   waypoint <project-folder> --scene scenes/other.scene.json
+//   waypoint <project-folder> --smoke-test
 //   waypoint --version
 //
 // A bare .scene.json path also works, which is handy while learning the format.
@@ -28,6 +29,7 @@ void printUsage() {
         "  waypoint <project-folder>                  play the project's start scene\n"
         "  waypoint <project-folder> --scene <file>   play a specific scene\n"
         "  waypoint <file.scene.json>                 play a single scene\n"
+        "  waypoint <project-folder> --smoke-test     render one frame, then exit\n"
         "  waypoint --version                         print the version\n"
         "\n"
         "Controls: WASD move, Space/LeftControl up and down, Shift boost,\n"
@@ -35,7 +37,8 @@ void printUsage() {
         "          Escape quits.\n"
         "\n"
         "The WAYPOINT_RENDERER environment variable picks a graphics backend:\n"
-        "  vulkan, opengl, opengles, d3d11, d3d12, metal  (default: auto)\n",
+        "  vulkan, opengl, opengles, d3d11, d3d12, metal  (default: auto)\n"
+        "  noop   - no GPU at all; validates the submit path, used by CI\n",
         std::string(waypoint::kEngineVersion).c_str());
 }
 
@@ -62,6 +65,7 @@ int main(int argc, char** argv) {
 
     std::string projectArgument;
     std::string sceneOverride;
+    bool smokeTest = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
@@ -72,6 +76,10 @@ int main(int argc, char** argv) {
         if (argument == "--version" || argument == "-v") {
             std::printf("Waypoint Engine %s\n", std::string(kEngineVersion).c_str());
             return 0;
+        }
+        if (argument == "--smoke-test") {
+            smokeTest = true;
+            continue;
         }
         if (argument == "--scene") {
             if (i + 1 >= argc) {
@@ -100,6 +108,7 @@ int main(int argc, char** argv) {
     const auto path = std::filesystem::path(projectArgument).lexically_normal();
 
     ApplicationConfig config;
+    config.exitAfterFirstFrame = smokeTest;
     if (endsWith(projectArgument, ".scene.json") || FileSystem::isRegularFile(path)) {
         // A scene file on its own: no project manifest to read.
         config.project.name = path.stem().stem().generic_string();

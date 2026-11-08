@@ -7,6 +7,11 @@ All notable changes to Waypoint Engine. Format follows
 ## [Unreleased]
 
 ### Added
+- `waypoint <project> --smoke-test` (and `wp.py run <project> --smoke-test`):
+  renders exactly one frame through bgfx's noop backend with SDL's dummy video
+  driver and exits non-zero if no frame was submitted. CI runs it on all three
+  desktop jobs, which is the first automated proof that the frame loop works.
+- `WAYPOINT_RENDERER=noop` selects that backend explicitly.
 - `JoltPhysicsWorld`: fixed 60 Hz simulation, box bodies, static/dynamic/kinematic
   motion, transform write-back, body removal, and Jolt trace/assert routing into
   the engine log.

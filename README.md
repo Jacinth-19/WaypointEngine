@@ -22,8 +22,14 @@ python tools/wp.py test        # run the unit tests
 On a machine with no GPU or window system (containers, CI):
 
 ```bash
-WAYPOINT_HEADLESS_BUILD=1 python tools/wp.py test
+WAYPOINT_HEADLESS_BUILD=1 python tools/wp.py test   # configure + build + unit tests
+python tools/wp.py run samples/hello_cube --smoke-test  # render one frame, no GPU needed
 ```
+
+`--smoke-test` uses bgfx's noop backend and SDL's dummy video driver: a window
+that never appears, running the real frame loop - create shader programs, issue
+draw calls, present - and exiting non-zero if no frame was submitted. It is how
+CI proves the render path runs on a machine that cannot show anything.
 
 ## Controls (the `waypoint` player)
 

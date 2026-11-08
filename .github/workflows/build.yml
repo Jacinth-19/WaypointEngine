@@ -74,6 +74,16 @@ jobs:
       # useless when you are debugging from the API or a phone. On failure, turn
       # the interesting lines of build.log into check-run annotations (always
       # visible in the UI and via the REST API) plus a commit comment.
+      # Nothing on a runner can open a window, but bgfx's noop backend runs the
+      # same submit path - create programs, issue draw calls, present - so this is
+      # the only automated evidence that a frame actually happens.
+      - name: Smoke test - render one frame with the noop backend
+        shell: bash
+        run: |
+          BIN=build/default/bin/waypoint
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          WAYPOINT_RENDERER=noop SDL_VIDEODRIVER=dummy "$BIN" samples/hello_cube --smoke-test
+
       - name: Report failure lines
         if: failure()
         shell: bash
@@ -164,6 +174,16 @@ jobs:
       # useless when you are debugging from the API or a phone. On failure, turn
       # the interesting lines of build.log into check-run annotations (always
       # visible in the UI and via the REST API) plus a commit comment.
+      # Nothing on a runner can open a window, but bgfx's noop backend runs the
+      # same submit path - create programs, issue draw calls, present - so this is
+      # the only automated evidence that a frame actually happens.
+      - name: Smoke test - render one frame with the noop backend
+        shell: bash
+        run: |
+          BIN=build/default/bin/waypoint
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          WAYPOINT_RENDERER=noop SDL_VIDEODRIVER=dummy "$BIN" samples/hello_cube --smoke-test
+
       - name: Report failure lines
         if: failure()
         shell: bash
