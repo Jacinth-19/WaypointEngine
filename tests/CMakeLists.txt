@@ -4,6 +4,7 @@
 # One executable, one CTest entry. Keeping it to a single binary means
 # `ctest` output stays readable and the link step happens once.
 waypoint_dependency_doctest()
+waypoint_dependency_stb()
 
 set(WAYPOINT_TEST_SOURCES
     main.cpp
@@ -14,6 +15,7 @@ set(WAYPOINT_TEST_SOURCES
     test_input.cpp
     test_camera.cpp
     test_content.cpp
+    test_image.cpp
 )
 
 if(WAYPOINT_ENABLE_SCRIPTING)
@@ -30,6 +32,9 @@ target_link_libraries(waypoint_tests
         Waypoint::Engine
         doctest::doctest
         waypoint_compiler_options
+        # test_image.cpp decodes what ImageWrite.cpp produced, so it needs
+        # stb_image as well as the writer's stb_image_write.
+        stb::stb
 )
 
 # The content test reads templates/ and samples/ from the source tree.

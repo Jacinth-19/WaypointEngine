@@ -6,6 +6,15 @@ All notable changes to Waypoint Engine. Format follows
 
 ## [Unreleased]
 
+### Added
+- `waypoint <project> --screenshot FILE` (and `wp.py run <project> --screenshot FILE`)
+  renders a few frames, saves one to FILE and exits. The extension chooses the
+  format - .png, .bmp, .tga, .jpg - and parent folders are created on demand, so
+  a screenshot can be dropped straight into the README.
+- `engine/core/ImageWrite.{hpp,cpp}`: the RGBA-to-file writer, kept out of the
+  renderer so the headless suite can round-trip an image (write, decode with
+  stb_image, compare every byte) on all three platforms without a GPU.
+
 ### Fixed
 - The player looked for `shaders/<profile>/vs_basic.bin`, but bgfx's shaderc
   writes the output after the *source* name - `vs_basic.sc.bin`. No shader was

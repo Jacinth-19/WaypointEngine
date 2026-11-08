@@ -5,6 +5,7 @@
 //   waypoint <project-folder>
 //   waypoint <project-folder> --scene scenes/other.scene.json
 //   waypoint <project-folder> --smoke-test
+//   waypoint <project-folder> --screenshot shot.png
 //   waypoint --version
 //
 // A bare .scene.json path also works, which is handy while learning the format.
@@ -30,6 +31,7 @@ void printUsage() {
         "  waypoint <project-folder> --scene <file>   play a specific scene\n"
         "  waypoint <file.scene.json>                 play a single scene\n"
         "  waypoint <project-folder> --smoke-test     render one frame, then exit\n"
+        "  waypoint <project-folder> --screenshot F   save one frame as F (.png), then exit\n"
         "  waypoint --version                         print the version\n"
         "\n"
         "Controls: WASD move, Space/LeftControl up and down, Shift boost,\n"
@@ -66,6 +68,7 @@ int main(int argc, char** argv) {
     std::string projectArgument;
     std::string sceneOverride;
     bool smokeTest = false;
+    std::string screenshotPath;
 
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
@@ -79,6 +82,14 @@ int main(int argc, char** argv) {
         }
         if (argument == "--smoke-test") {
             smokeTest = true;
+            continue;
+        }
+        if (argument == "--screenshot") {
+            if (i + 1 >= argc) {
+                Log::error("--screenshot needs a file name, e.g. --screenshot shot.png");
+                return 1;
+            }
+            screenshotPath = argv[++i];
             continue;
         }
         if (argument == "--scene") {
@@ -109,6 +120,9 @@ int main(int argc, char** argv) {
 
     ApplicationConfig config;
     config.exitAfterFirstFrame = smokeTest;
+    if (!screenshotPath.empty()) {
+        config.screenshotPath = screenshotPath;
+    }
     if (endsWith(projectArgument, ".scene.json") || FileSystem::isRegularFile(path)) {
         // A scene file on its own: no project manifest to read.
         config.project.name = path.stem().stem().generic_string();

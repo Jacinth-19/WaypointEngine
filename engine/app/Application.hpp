@@ -27,6 +27,10 @@ struct ApplicationConfig {
     // Stop after one rendered frame. Used by smoke tests that need to prove a
     // window and device came up without leaving a window open.
     bool exitAfterFirstFrame = false;
+    // Write the next rendered frame to this path and exit. The extension picks
+    // the format (.png, .bmp, .tga, .jpg). Implies a short run: the frame has to
+    // be presented before bgfx can hand the pixels over.
+    std::filesystem::path screenshotPath;
 };
 
 class Application {

@@ -31,6 +31,16 @@ that never appears, running the real frame loop - create shader programs, issue
 draw calls, present - and exiting non-zero if no frame was submitted. It is how
 CI proves the render path runs on a machine that cannot show anything.
 
+On a machine with a GPU, save what the player actually drew:
+
+```bash
+python tools/wp.py run MyGame --screenshot shot.png   # one frame, then exit
+```
+
+The extension picks the format (`.png`, `.bmp`, `.tga`, `.jpg`) and missing
+folders are created. The noop backend has no back buffer, so a capture there
+fails with an explanation rather than writing an empty file.
+
 ## Controls (the `waypoint` player)
 
 | Key | Action |

@@ -13,8 +13,13 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 - [x] bgfx renderer: cube, grid, camera, shader-missing fallback
 - [x] `wp.py` CLI: doctor, new, build, run, test, export, deps
 - [x] 15 pinned dependencies, lockfile, FetchContent fallback
-- [ ] **Green CI on ubuntu/windows/macos** ← current priority
-- [ ] First frame proven on real hardware, with a screenshot in the README
+- [x] **Green CI on ubuntu/windows/macos** — all six jobs, plus the Qt 6 editor
+- [~] First frame proven on real hardware, with a screenshot in the README
+      ← current priority. The frame *loop* is proven: every desktop job runs
+      `waypoint samples/hello_cube --smoke-test` and reports 1 frame, 3 draw
+      calls, shaders loaded. What is missing is a GPU: noop rasterises nothing,
+      and no window has ever been mapped. `--screenshot shot.png` is ready for
+      whoever has hardware.
 
 ## 1. Assets
 

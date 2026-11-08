@@ -9,6 +9,8 @@
 //   * depth convention depends on `bgfx::getCaps()->homogeneousDepth`.
 #include "render/BgfxRenderer.hpp"
 
+#include "core/ImageWrite.hpp"
+
 #include <array>
 #include <cctype>
 #include <cstdio>
@@ -196,8 +198,10 @@ public:
     }
     void cacheWrite(std::uint64_t /*id*/, const void* /*data*/, std::uint32_t /*size*/) override {}
 
-    // Screenshots arrive as tightly packed RGBA; write a PPM, which every image
-    // viewer understands and which needs no extra dependency.
+    // bgfx hands over tightly packed RGBA rows, but `pitch` may be wider than
+    // width * 4 and the rows may be upside down. writeImage() wants a contiguous
+    // top-down buffer, so repack first, then let it pick the encoder from the
+    // file extension - a .png screenshot can go straight into the README.
     void screenShot(const char* filePath, std::uint32_t width, std::uint32_t height,
                     std::uint32_t pitch, bgfx::TextureFormat::Enum /*format*/, const void* data,
                     std::uint32_t /*size*/, bool yflip) override {
@@ -205,25 +209,20 @@ public:
             return;
         }
         const auto* pixels = static_cast<const unsigned char*>(data);
-        std::FILE* file = std::fopen(filePath, "wb");
-        if (file == nullptr) {
-            Log::warn("Could not open screenshot path {}", filePath);
-            return;
-        }
-        std::fprintf(file, "P6\n%u %u\n255\n", width, height);
-        std::vector<unsigned char> row(width * 3);
+        std::vector<unsigned char> rows(static_cast<std::size_t>(width) * height * 4);
         for (std::uint32_t y = 0; y < height; ++y) {
             const std::uint32_t sourceY = yflip ? (height - 1 - y) : y;
-            const unsigned char* source = pixels + sourceY * pitch;
-            for (std::uint32_t x = 0; x < width; ++x) {
-                row[x * 3 + 0] = source[x * 4 + 0];
-                row[x * 3 + 1] = source[x * 4 + 1];
-                row[x * 3 + 2] = source[x * 4 + 2];
-            }
-            std::fwrite(row.data(), 1, row.size(), file);
+            const unsigned char* source = pixels + static_cast<std::size_t>(sourceY) * pitch;
+            unsigned char* destination = rows.data() + static_cast<std::size_t>(y) * width * 4;
+            std::memcpy(destination, source, static_cast<std::size_t>(width) * 4);
         }
-        std::fclose(file);
-        Log::info("Screenshot written to {}", filePath);
+
+        std::string error;
+        if (!writeImage(filePath, width, height, rows.data(), &error)) {
+            Log::error("Screenshot failed: {}", error);
+            return;
+        }
+        Log::info("Screenshot written to {} ({}x{})", filePath, width, height);
     }
 
     void captureBegin(std::uint32_t /*width*/, std::uint32_t /*height*/,

@@ -591,6 +591,8 @@ def command_run(args: argparse.Namespace) -> int:
 
     arguments = [str(binary), str(project_dir)]
     environment = None
+    if args.screenshot:
+        arguments += ["--screenshot", args.screenshot]
     if args.smoke_test:
         # Prove the frame loop on a machine with no display: bgfx's noop backend
         # runs the real submit path (create programs, issue draws, present) and
@@ -735,6 +737,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd = sub.add_parser("run", help="run a project in the waypoint player")
     run_cmd.add_argument("project", help="project folder or name")
     run_cmd.add_argument("--release", action="store_true", help="use the release runtime")
+    run_cmd.add_argument(
+        "--screenshot",
+        metavar="FILE",
+        help="save one rendered frame as FILE (.png, .bmp, .tga, .jpg), then exit",
+    )
     run_cmd.add_argument(
         "--smoke-test",
         action="store_true",

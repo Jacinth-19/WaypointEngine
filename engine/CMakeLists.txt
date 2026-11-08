@@ -9,9 +9,13 @@ waypoint_dependency_glm()
 waypoint_dependency_entt()
 waypoint_dependency_json()
 waypoint_dependency_spdlog()
+# The screenshot writer uses stb_image_write. It has nothing to do with the GPU,
+# so it stays outside WAYPOINT_ENABLE_RENDER: the headless suite tests it.
+waypoint_dependency_stb()
 
 set(WAYPOINT_ENGINE_SOURCES
     core/FileSystem.cpp
+    core/ImageWrite.cpp
     core/Log.cpp
     core/Uuid.cpp
     ecs/World.cpp
@@ -53,6 +57,8 @@ target_link_libraries(waypoint_engine
         EnTT::EnTT
         nlohmann_json::nlohmann_json
         spdlog::spdlog
+    PRIVATE
+        stb::stb
 )
 set_target_properties(waypoint_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

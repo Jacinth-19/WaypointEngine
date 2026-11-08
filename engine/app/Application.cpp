@@ -44,6 +44,10 @@ std::filesystem::path findShaderDirectory() {
     return besideExecutable;  // may not exist; the renderer will warn
 }
 
+// Frames to render when capturing a screenshot: one to draw it, a couple more
+// for bgfx to deliver the pixels back through the callback.
+constexpr std::size_t kScreenshotFrames = 4;
+
 // The entity the player looks through: a primary CameraComponent if there is
 // one, otherwise the first camera, otherwise nothing.
 Transform primaryCameraTransform(const Scene& scene, f32& fieldOfViewDegrees) {
@@ -195,6 +199,11 @@ int Application::run(const ApplicationConfig& config) {
     auto previousTime = std::chrono::steady_clock::now();
     std::size_t frames = 0;
     std::size_t drawsSubmitted = 0;
+    // A screenshot needs the frame presented first, and bgfx delivers the pixels
+    // on a later frame than the one that was requested, so a capture runs a few
+    // frames rather than stopping at one.
+    const bool capturing = !config.screenshotPath.empty();
+    const std::size_t frameLimit = capturing ? kScreenshotFrames : 1;
     bool running = true;
     while (running) {
         const auto now = std::chrono::steady_clock::now();
@@ -253,7 +262,11 @@ int Application::run(const ApplicationConfig& config) {
         app.renderer.endFrame();
 
         ++frames;
-        if (config.exitAfterFirstFrame) {
+        if (capturing && frames == 1) {
+            app.renderer.requestScreenshot(FileSystem::genericString(config.screenshotPath));
+            Log::info("Capturing a frame to {}", FileSystem::genericString(config.screenshotPath));
+        }
+        if (config.exitAfterFirstFrame || (capturing && frames >= frameLimit)) {
             running = false;
         }
     }
@@ -270,6 +283,22 @@ int Application::run(const ApplicationConfig& config) {
     app.renderer.shutdown();
     app.window.destroy();
     SdlWindow::shutdownSubsystem();
+
+    if (capturing) {
+        // bgfx writes the file from inside a later frame, so its absence means
+        // either the backend cannot capture (Noop has no back buffer) or the path
+        // was refused. Either way the user asked for pixels and got none.
+        if (!FileSystem::exists(config.screenshotPath)) {
+            Log::error("No screenshot was written to {}.{}",
+                       FileSystem::genericString(config.screenshotPath),
+                       backend == "Noop"
+                           ? " The noop backend has no back buffer to capture;"
+                             " run without WAYPOINT_RENDERER=noop."
+                           : "");
+            return 1;
+        }
+        Log::info("Screenshot saved: {}", FileSystem::genericString(config.screenshotPath));
+    }
 
     if (config.exitAfterFirstFrame) {
         // A smoke test is only worth anything if it fails when nothing was drawn:
