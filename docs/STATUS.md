@@ -28,7 +28,7 @@ authority for those.
 | Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
 
-### CI (GitHub Actions, commit `98f5928`)
+### CI (GitHub Actions, commit `02098c9`)
 
 Every job below ran to completion on GitHub's own runners:
 
@@ -52,6 +52,7 @@ CI, and is not promised to work:
 | --- | --- |
 | Pixels on a real GPU | the frame is proven through bgfx's noop backend, which validates the submit path but rasterises nothing. No CI runner has a GPU, and nobody has looked at the cube on a machine that does. |
 | Shader execution | the `.bin` files are loaded and handed to bgfx, but no backend has ever compiled or run them |
+| glTF on a real backend | `samples/hello_cube` draws `assets/cube.glb`, and CI's smoke test proves the file is parsed, uploaded and drawn - through noop, which rasterises nothing |
 | A real GPU backend | `WAYPOINT_RENDERER` selects vulkan / opengl / opengles / d3d11 / d3d12 / metal, but CI can only run `noop`. Only `dxbc` and `spirv`/`glsl`/`essl`/`metal` shaders are compiled by default, and no GPU has executed them. |
 | A windowed session | the smoke test uses SDL's dummy video driver; no window has ever been mapped on a real desktop |
 | Runtime on Windows/macOS | the desktop jobs build, link *and* run the runtime (one noop frame), but nothing interactive has been tried |
