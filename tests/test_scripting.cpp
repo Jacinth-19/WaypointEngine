@@ -1,6 +1,6 @@
 // Tests for the Lua scripting engine and the `waypoint` script API.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include <string>
 #include <vector>

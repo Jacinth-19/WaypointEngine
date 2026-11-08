@@ -1,6 +1,6 @@
 // Tests for the SDL-free input layer, including the Lua key-name mapping.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include "platform/Input.hpp"
 

@@ -3,7 +3,7 @@
 //
 // These files are the first thing a beginner opens, so a typo in one of them is
 // worse than a typo in the engine. Load every project and scene for real.
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include <algorithm>
 #include <filesystem>

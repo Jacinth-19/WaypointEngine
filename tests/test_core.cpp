@@ -1,6 +1,6 @@
 // Tests for core: UUIDs, files, logging, transforms.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include <functional>
 #include <set>

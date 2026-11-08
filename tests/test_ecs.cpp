@@ -1,6 +1,6 @@
 // Tests for the ECS world.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include <algorithm>
 #include <stdexcept>

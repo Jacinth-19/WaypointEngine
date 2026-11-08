@@ -1,6 +1,6 @@
 // Tests for scene JSON loading and saving.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include <nlohmann/json.hpp>
 

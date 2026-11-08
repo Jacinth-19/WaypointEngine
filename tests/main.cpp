@@ -1,7 +1,7 @@
 // Waypoint Engine — test runner entry point.
 // SPDX-License-Identifier: Apache-2.0
 #define DOCTEST_CONFIG_IMPLEMENT
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 int main(int argc, char** argv) {
     doctest::Context context;

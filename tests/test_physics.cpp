@@ -1,6 +1,6 @@
 // Tests for the Jolt physics wrapper.
 // SPDX-License-Identifier: Apache-2.0
-#include <doctest/doctest.h>
+#include "TestDoctest.hpp"
 
 #include "core/Log.hpp"
 #include "ecs/Components.hpp"
