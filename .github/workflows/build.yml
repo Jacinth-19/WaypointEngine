@@ -1,0 +1,108 @@
+name: Build
+
+# Two jobs, deliberately separate:
+#   core    - headless: engine + tests, no GPU, no window. Fast and reliable.
+#   desktop - the real thing: bgfx + SDL3 + shaderc, builds the player.
+# If `core` is red, nothing else matters.
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Core + tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      WAYPOINT_HEADLESS_BUILD: "1"
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache dependency checkouts
+        uses: actions/cache@v4
+        with:
+          path: .cache/waypoint-deps
+          key: waypoint-deps-${{ runner.os }}-${{ hashFiles('external/dependencies.lock.json') }}
+          restore-keys: waypoint-deps-${{ runner.os }}-
+
+      - name: Fetch pinned dependencies
+        run: python tools/wp.py deps fetch
+
+      - name: Verify every pin matches the lockfile
+        run: python tools/wp.py deps status
+
+      - name: Doctor
+        run: python tools/wp.py doctor
+
+      - name: Configure, build and test (headless)
+        run: python tools/wp.py test
+
+  desktop:
+    name: Desktop runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxfixes-dev libxi-dev libxss-dev libwayland-dev \
+            libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libvulkan-dev
+
+      - name: Cache dependency checkouts
+        uses: actions/cache@v4
+        with:
+          path: .cache/waypoint-deps
+          key: waypoint-deps-desktop-${{ runner.os }}-${{ hashFiles('external/dependencies.lock.json') }}
+          restore-keys: waypoint-deps-desktop-${{ runner.os }}-
+
+      - name: Fetch pinned dependencies
+        run: python tools/wp.py deps fetch
+
+      - name: Build runtime (bgfx + SDL3 + shaderc + Jolt + Lua)
+        run: python tools/wp.py build
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.os }}
+          path: |
+            build/default/CMakeCache.txt
+            build/default/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7

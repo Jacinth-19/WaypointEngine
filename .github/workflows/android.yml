@@ -1,0 +1,46 @@
+name: Android (experimental)
+
+# Manual only, and deliberately modest: Android is a later milestone, so this job
+# proves that the C++ core cross-compiles for arm64-v8a. It does not produce an
+# APK - there is no activity, no ANativeWindow hand-off and no touch input yet.
+# See docs/ANDROID.md.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compile-core:
+    name: Cross-compile core (arm64-v8a)
+    runs-on: ubuntu-latest
+    env:
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install NDK
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r27
+
+      - name: Configure (headless, arm64)
+        env:
+          WAYPOINT_HEADLESS_BUILD: "1"
+        run: |
+          cmake -S . -B build/android -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DWAYPOINT_HEADLESS_BUILD=ON \
+            -DWAYPOINT_BUILD_TESTS=ON
+
+      - name: Build engine and tests
+        run: cmake --build build/android --parallel 2
+
+      - name: Note what this job does not do
+        run: |
+          echo "Android status: core library cross-compiles for arm64-v8a."
+          echo "Not built here: SDL3 activity, bgfx swap chain, APK packaging."
+          echo "See docs/ANDROID.md."

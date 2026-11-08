@@ -1,0 +1,106 @@
+name: Release
+
+# Triggered by a version tag: `git push origin v0.1.0`.
+# Builds a release player for each desktop OS, packages the sample project with
+# `wp.py export`, and attaches the archives to a GitHub release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxfixes-dev libxi-dev libxss-dev libwayland-dev \
+            libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libvulkan-dev
+
+      - name: Cache dependency checkouts
+        uses: actions/cache@v4
+        with:
+          path: .cache/waypoint-deps
+          key: waypoint-deps-release-${{ runner.os }}-${{ hashFiles('external/dependencies.lock.json') }}
+          restore-keys: waypoint-deps-release-${{ runner.os }}-
+
+      - name: Fetch pinned dependencies
+        run: python tools/wp.py deps fetch
+
+      - name: Build release runtime
+        run: python tools/wp.py build --release
+
+      - name: Package the hello_cube sample
+        run: python tools/wp.py export samples/hello_cube --release
+
+      - name: Add licence files to the package
+        shell: bash
+        run: |
+          set -e
+          package=$(ls -d dist/hello-*/ | head -n 1)
+          cp LICENSE NOTICE "$package"
+          echo "PACKAGE=$package" >> "$GITHUB_ENV"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: waypoint-hello-cube-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List what will be published
+        run: find artifacts -maxdepth 3 -type f | sort | head -50
+
+      - name: Create the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Waypoint Engine ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: true
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
+          body: |
+            Waypoint Engine ${{ github.ref_name }}
+
+            Built from the pinned dependencies in `external/dependencies.lock.json`.
+            Each archive contains the `waypoint` player, compiled shaders and the
+            `hello_cube` sample project. Run `run.sh` (Linux/macOS) or `run.bat`
+            (Windows) to play.
+
+            See `docs/STATUS.md` for what is verified in this version.

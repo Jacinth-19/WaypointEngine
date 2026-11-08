@@ -1,0 +1,40 @@
+Waypoint Engine
+Copyright 2026 the Waypoint Engine authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Waypoint Engine is original work. It contains no code, data, assets, file
+formats or trademarked content from any commercial game. The re3 project was
+consulted as an architecture reference only; re3 has no open-source licence and
+none of its source is used here.
+
+This product includes software developed by third parties, all under
+permissive licences:
+
+  EnTT (entity component system)               MIT        https://github.com/skypjack/entt
+  GLM (OpenGL Mathematics)                     MIT        https://github.com/g-truc/glm
+  JSON for Modern C++ (nlohmann/json)          MIT        https://github.com/nlohmann/json
+  spdlog (logging)                             MIT        https://github.com/gabime/spdlog
+  doctest (unit tests)                         MIT        https://github.com/doctest/doctest
+  SDL 3 (window and input)                     Zlib       https://github.com/libsdl-org/SDL
+  Lua 5.4 (scripting language)                 MIT        https://www.lua.org/license.html
+  sol2 (C++ <-> Lua bindings)                  MIT        https://github.com/ThePhD/sol2
+  Jolt Physics                                 MIT        https://github.com/jrouwe/JoltPhysics
+  bgfx (rendering)                             BSD-2-Clause https://github.com/bkaradzic/bgfx
+  bx (bgfx base library)                       BSD-2-Clause https://github.com/bkaradzic/bx
+  bimg (bgfx image library)                    BSD-2-Clause https://github.com/bkaradzic/bimg
+  bgfx.cmake (CMake build of bgfx)             CC0-1.0    https://github.com/bkaradzic/bgfx.cmake
+  stb (image loading)                          MIT        https://github.com/nothings/stb
+  tinygltf (glTF loading)                      MIT        https://github.com/syoyo/tinygltf
+
+Exact versions and commit hashes are recorded in
+external/dependencies.lock.json.
+
+Qt 6 is an optional build dependency of the editor and is used under the
+LGPL-3.0 / commercial licence terms offered by The Qt Company. Waypoint Engine
+links Qt dynamically; no Qt source is included in this repository.
+
+bgfx vendors additional permissively licensed code in-tree (glslang,
+SPIRV-Cross, SPIRV-Tools, Vulkan headers, dawn/tint, etc.). Their licences are
+documented in the bgfx checkout under external/bgfx and are compatible with
+Apache-2.0 for our use.

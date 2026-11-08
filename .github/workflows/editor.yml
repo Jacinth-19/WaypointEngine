@@ -1,0 +1,71 @@
+name: Editor (Qt 6)
+
+# Manual only: the Qt editor is a large dependency and this job is slow.
+# Run it from the Actions tab when you change anything under editor/.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "editor/**"
+      - "engine/**"
+      - "cmake/**"
+      - ".github/workflows/editor.yml"
+
+jobs:
+  build-editor:
+    name: Build editor (ubuntu)
+    runs-on: ubuntu-latest
+    env:
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Qt 6 and build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build qt6-base-dev libx11-dev libxext-dev libxrandr-dev \
+            libxinerama-dev libxcursor-dev libxfixes-dev libxi-dev \
+            libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev \
+            libvulkan-dev
+
+      - name: Cache dependency checkouts
+        uses: actions/cache@v4
+        with:
+          path: .cache/waypoint-deps
+          key: waypoint-deps-editor-${{ runner.os }}-${{ hashFiles('external/dependencies.lock.json') }}
+          restore-keys: waypoint-deps-editor-${{ runner.os }}-
+
+      - name: Fetch pinned dependencies
+        run: python tools/wp.py deps fetch
+
+      # Rendering stays off for this job: it proves the editor and the engine
+      # core compile together without dragging in bgfx and shaderc.
+      - name: Build editor
+        run: python tools/wp.py build --editor
+        env:
+          WAYPOINT_HEADLESS_BUILD: ""
+
+      # The editor is a GUI app with no CLI: the smoke test is "it starts under
+      # the offscreen platform and is still alive after a few seconds", i.e. it
+      # did not crash on startup. 124 is timeout's exit code, which is success here.
+      - name: Smoke test - the editor starts
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          set +e
+          timeout 15 ./build/editor/bin/waypoint_editor
+          code=$?
+          set -e
+          if [ "$code" -ne 124 ] && [ "$code" -ne 0 ]; then
+            echo "editor exited with $code"
+            exit 1
+          fi
+          echo "editor started and stayed alive"
