@@ -21,7 +21,21 @@ Environment: Debian 12 container, gcc 12.2, CMake 4.4.4, Ninja 1.13, Python
 | Scene JSON | round-trip, defaults, normalisation, 7 failure modes | passing |
 | Project manifests | create/load/save, missing + malformed + wrong-typed fields | passing |
 | Shipped content | every `waypoint.project.json` under `samples/` and `templates/` loads, has a camera and a light | passing |
+| Second compiler | full headless build with Clang 21 + libc++ (as a local stand-in for AppleClang) | builds, **58 cases / 2185 assertions pass** |
+| Release build (asserts off) | clang, `CMAKE_BUILD_TYPE=Release`, headless | `waypoint_engine` builds warning-free |
 | Renderer/window sources | `g++ -std=c++20 -fsyntax-only` against pinned bgfx, bx, bimg, SDL3, Jolt, Lua, sol2, glm, EnTT, spdlog headers | `BgfxRenderer.cpp`, `SdlWindow.cpp`, `Application.cpp`, `runtime/main.cpp` all clean |
+
+### CI matrix (GitHub Actions, run on commit `e32d249`)
+
+| Job | Result |
+| --- | --- |
+| Core + tests (ubuntu-latest, gcc) | **pass** |
+| Core + tests (macos-latest, AppleClang) | **pass** |
+| Desktop runtime (ubuntu-latest) — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled to `.bin` | **pass** |
+| Desktop runtime (macos-latest) — same, metal/spirv/glsl/essl profiles | **pass** |
+| Editor (Qt 6) | **pass** |
+| Core + tests (windows-latest, MSVC) | fail: `<ostream>`-less `string_view` streaming in a test (fixed since) |
+| Desktop runtime (windows-latest) | fail: HLSL (dxil) shader compile |
 
 ## Implemented but unverified
 
@@ -30,11 +44,10 @@ some have never been configured at all:
 
 | Area | Why unverified |
 | --- | --- |
-| Full desktop build (link) | needs X11/GL/Vulkan dev packages and a GPU-capable loader |
-| bgfx window + first frame | no window system |
-| `shaderc` build and `.bin` shader output | only produced when rendering is configured, which cannot happen here |
-| Windows and macOS builds | no runners available in this environment |
-| Qt 6 editor build/run | Qt 6 not installed |
+| bgfx window + first frame | the CI desktop jobs link and compile shaders, but no job opens a window or renders a frame — there is no GPU on the runners and no smoke run yet |
+| Runtime run on Windows | Windows desktop job still fails to compile the dxil (D3D12) shader profile |
+| Qt 6 editor *running* | Qt 6 is not installed here; CI builds and starts the editor offscreen, this environment cannot |
+| Windows core tests passing | last run failed at compile (see matrix), so no Windows test run has completed |
 | Android NDK build | not installed |
 | `wp.py export` output | needs a real runtime binary; refused under headless (verified refusal only) |
 | GitHub Actions workflows | written, YAML-checked, **not executed** |

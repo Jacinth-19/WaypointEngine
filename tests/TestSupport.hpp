@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <ostream>
 #include <string>
 #include <string_view>
 
