@@ -6,6 +6,16 @@ All notable changes to Waypoint Engine. Format follows
 
 ## [Unreleased]
 
+### Fixed
+- The player looked for `shaders/<profile>/vs_basic.bin`, but bgfx's shaderc
+  writes the output after the *source* name - `vs_basic.sc.bin`. No shader was
+  ever loaded on any backend, so the renderer always fell back to its "shaders
+  missing" screen and the cube never appeared. Found by making the smoke test
+  assert that a shader program was created, which it now does.
+- `shaderFolderFor()` mapped both D3D11 and D3D12 to `dxil`. D3D11 uses `dxbc`
+  and `dxil` is only compiled with `-DWAYPOINT_COMPILE_DXIL=ON`, so the cube
+  silently vanished on the default Windows backend.
+
 ### Added
 - `waypoint <project> --smoke-test` (and `wp.py run <project> --smoke-test`):
   renders exactly one frame through bgfx's noop backend with SDL's dummy video

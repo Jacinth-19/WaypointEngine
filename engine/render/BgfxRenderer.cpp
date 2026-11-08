@@ -149,12 +149,19 @@ bgfx::RendererType::Enum parseRendererName(const std::string& name) {
 // bgfx writes shader bytes into this binary folder layout.
 const char* shaderFolderFor(bgfx::RendererType::Enum type) {
     switch (type) {
-        case bgfx::RendererType::Direct3D11:
+        // D3D11 and D3D12 do not share bytecode: D3D11 uses dxbc, D3D12 uses
+        // dxil. Mapping both to "dxil" left D3D11 looking in a folder that is
+        // only compiled with -DWAYPOINT_COMPILE_DXIL=ON, so the cube silently
+        // vanished on that backend.
+        case bgfx::RendererType::Direct3D11: return "dxbc";
         case bgfx::RendererType::Direct3D12: return "dxil";
         case bgfx::RendererType::Metal: return "metal";
         case bgfx::RendererType::OpenGL: return "glsl";
         case bgfx::RendererType::OpenGLES: return "essl";
         case bgfx::RendererType::Vulkan: return "spirv";
+        // Noop never executes a shader, but it still has to find one on disk to
+        // prove the path works. spirv is the one profile every platform builds.
+        case bgfx::RendererType::Noop: return "spirv";
         default: return "spirv";
     }
 }
@@ -228,6 +235,13 @@ public:
 
 }  // namespace
 
+// bgfx's shaderc names its output after the *source* file: shaders/vs_basic.sc
+// becomes <profile>/vs_basic.sc.bin, not vs_basic.bin. Looking for the shorter
+// name fails silently - the renderer just shows its "shaders missing" screen, so
+// the cube never appears and nothing errors. The smoke test asserts on it.
+constexpr const char* kVertexShaderFile = "vs_basic.sc.bin";
+constexpr const char* kFragmentShaderFile = "fs_basic.sc.bin";
+
 struct BgfxRenderer::Impl {
     RendererCallback callback;
     bgfx::VertexLayout layout;
@@ -284,8 +298,8 @@ struct BgfxRenderer::Impl {
         const bgfx::RendererType::Enum type = bgfx::getRendererType();
         const char* folder = shaderFolderFor(type);
 
-        bgfx::ShaderHandle vertexShader = loadShader(directory, folder, "vs_basic.bin");
-        bgfx::ShaderHandle fragmentShader = loadShader(directory, folder, "fs_basic.bin");
+        bgfx::ShaderHandle vertexShader = loadShader(directory, folder, kVertexShaderFile);
+        bgfx::ShaderHandle fragmentShader = loadShader(directory, folder, kFragmentShaderFile);
         if (!bgfx::isValid(vertexShader) || !bgfx::isValid(fragmentShader)) {
             Log::warn("Shaders not found in {}/{}. Build them with WAYPOINT_BUILD_BGFX_TOOLS=ON.",
                       directory, folder);
@@ -312,7 +326,7 @@ struct BgfxRenderer::Impl {
     void drawMissingShaderMessage() const {
         bgfx::dbgTextClear();
         bgfx::dbgTextPrintf(2, 2, 0x4f, "Waypoint Engine: shaders not found.");
-        bgfx::dbgTextPrintf(2, 3, 0x0f, "Expected <install>/shaders/<profile>/vs_basic.bin");
+        bgfx::dbgTextPrintf(2, 3, 0x0f, "Expected <install>/shaders/<profile>/%s", kVertexShaderFile);
         bgfx::dbgTextPrintf(2, 4, 0x0f, "Build them with WAYPOINT_BUILD_BGFX_TOOLS=ON and rebuild.");
         bgfx::dbgTextPrintf(2, 5, 0x0f, "Backend in use: %s", backendName.c_str());
     }

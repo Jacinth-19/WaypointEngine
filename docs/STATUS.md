@@ -40,7 +40,7 @@ Every job below ran to completion on GitHub's own runners:
 | Desktop runtime | ubuntu-latest — bgfx + SDL3 + shaderc + Jolt + Lua, shaders compiled | **pass** |
 | Desktop runtime | macos-latest — spirv/glsl/essl/metal | **pass** |
 | Desktop runtime | windows-latest — spirv/glsl/essl/dxbc | **pass** |
-| **One frame rendered** | all three desktop jobs: `waypoint samples/hello_cube --smoke-test` with `WAYPOINT_RENDERER=noop` and `SDL_VIDEODRIVER=dummy` | **pass** — a window was created, shader programs built, draw calls submitted and the frame presented, verified by the player exiting 0 and logging the backend |
+| **One frame rendered** | all three desktop jobs: `waypoint samples/hello_cube --smoke-test` with `WAYPOINT_RENDERER=noop` and `SDL_VIDEODRIVER=dummy` | **pass** — a window was created, shader programs built, draw calls submitted and the frame presented, verified by the player exiting 0 and logging the backend. The player asserts all three itself, so a "shaders missing" fallback now fails the job instead of passing quietly. |
 | Editor (Qt 6) | ubuntu-latest — build + offscreen start | **pass** |
 
 ## Implemented but unverified
@@ -51,6 +51,7 @@ CI, and is not promised to work:
 | Area | Why unverified |
 | --- | --- |
 | Pixels on a real GPU | the frame is proven through bgfx's noop backend, which validates the submit path but rasterises nothing. No CI runner has a GPU, and nobody has looked at the cube on a machine that does. |
+| A real GPU backend | `WAYPOINT_RENDERER` selects vulkan / opengl / opengles / d3d11 / d3d12 / metal, but CI can only run `noop`. Only `dxbc` and `spirv`/`glsl`/`essl`/`metal` shaders are compiled by default, and no GPU has executed them. |
 | A windowed session | the smoke test uses SDL's dummy video driver; no window has ever been mapped on a real desktop |
 | Runtime on Windows/macOS | the desktop jobs build and link the runtime, they do not start it |
 | Qt 6 editor interaction | CI starts the editor offscreen and checks it does not crash; nobody has clicked a button |
