@@ -64,16 +64,18 @@ function(waypoint_attach_shaders target)
     # Windows; dxil is only needed by the D3D12 backend, which is not validated
     # yet. See docs/STATUS.md. Turn it back on with -DWAYPOINT_COMPILE_DXIL=ON
     # once that path is checked on real hardware.
-    option(WAYPOINT_COMPILE_DXIL "Compile dxil shaders for the D3D12 backend" OFF)
+    # These are shaderc profile names, not folder names: bgfx maps 430 -> glsl,
+    # 300_es -> essl, s_5_0 -> dxbc, s_6_0 -> dxil.
+    option(WAYPOINT_COMPILE_DXIL "Compile dxil (D3D12) shaders" OFF)
     if(WIN32)
-        set(profiles spirv glsl essl dxbc)
+        set(profiles spirv 430 300_es s_5_0)
         if(WAYPOINT_COMPILE_DXIL)
-            list(APPEND profiles dxil)
+            list(APPEND profiles s_6_0)
         endif()
     elseif(APPLE)
-        set(profiles spirv glsl essl metal)
+        set(profiles spirv 430 300_es metal)
     else()
-        set(profiles spirv glsl essl)
+        set(profiles spirv 430 300_es)
     endif()
 
     bgfx_compile_shaders(
