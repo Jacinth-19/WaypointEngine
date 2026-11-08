@@ -23,7 +23,9 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 
 ## 1. Assets
 
-- [ ] glTF loading with tinygltf; vertex/index buffers per primitive
+- [x] glTF loading with tinygltf (CPU-side geometry, node transforms, clear errors)
+- [~] vertex/index buffers per primitive — the arrays are there; the renderer still
+      builds its own cube and does not consume them yet
 - [ ] Mesh registry replacing the hardcoded cube path
 - [ ] Material assets (metallic/roughness), texture loading via stb/bimg
 - [ ] Asset paths resolved relative to the project, with clear errors

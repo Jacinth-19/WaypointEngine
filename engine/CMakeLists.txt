@@ -12,10 +12,14 @@ waypoint_dependency_spdlog()
 # The screenshot writer uses stb_image_write. It has nothing to do with the GPU,
 # so it stays outside WAYPOINT_ENABLE_RENDER: the headless suite tests it.
 waypoint_dependency_stb()
+# glTF assets: the loader is CPU-side, so it belongs to the always-on set rather
+# than to the renderer.
+waypoint_dependency_tinygltf()
 
 set(WAYPOINT_ENGINE_SOURCES
     core/FileSystem.cpp
     core/ImageWrite.cpp
+    assets/GltfLoader.cpp
     core/Log.cpp
     core/Uuid.cpp
     ecs/World.cpp
@@ -59,6 +63,7 @@ target_link_libraries(waypoint_engine
         spdlog::spdlog
     PRIVATE
         stb::stb
+        tinygltf::tinygltf
 )
 set_target_properties(waypoint_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

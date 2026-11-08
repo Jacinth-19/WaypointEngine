@@ -7,6 +7,14 @@ All notable changes to Waypoint Engine. Format follows
 ## [Unreleased]
 
 ### Added
+- glTF geometry loading: `engine/assets/GltfLoader.{hpp,cpp}` reads `.glb` and
+  `.gltf` files into positions, normals, COLOR_0 and 32-bit indices, applies the
+  node hierarchy's transform so an asset lands where it was placed, and reports
+  missing files, unreadable accessors and out-of-range indices instead of
+  throwing. CPU-side only: turning these arrays into GPU buffers is the next
+  step, and the headless suite loads a real `.glb` (5 new cases, 70 total).
+- `samples/hello_cube/assets/cube.glb` — a hand-written glTF binary cube, 24
+  vertices and 36 indices, used by those tests.
 - `waypoint <project> --screenshot FILE` (and `wp.py run <project> --screenshot FILE`)
   renders a few frames, saves one to FILE and exits. The extension chooses the
   format - .png, .bmp, .tga, .jpg - and parent folders are created on demand, so

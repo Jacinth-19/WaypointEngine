@@ -17,6 +17,15 @@ python tools/wp.py run samples/hello_cube
 | Right mouse (hold) or F1 | capture the mouse and look |
 | Escape | quit |
 
+## Assets
+
+`assets/cube.glb` is a real glTF 2.0 binary: 24 vertices, 36 indices, flat normals,
+one primitive. It is written by hand (a small script, kept out of the tree) rather
+than exported, so it stays small enough to read and review, and the engine's
+loader test loads it on every platform - positions, normals, index range and
+triangle winding against the vertex normal. The scene still draws the built-in
+cube; wiring this file into the renderer is the next step.
+
 ## What to look for
 
 1. The grid: red is the **X** axis, blue is the **Z** axis.

@@ -16,6 +16,7 @@ set(WAYPOINT_TEST_SOURCES
     test_camera.cpp
     test_content.cpp
     test_image.cpp
+    test_gltf.cpp
 )
 
 if(WAYPOINT_ENABLE_SCRIPTING)
