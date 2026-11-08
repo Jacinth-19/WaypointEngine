@@ -79,8 +79,17 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### core ${{ matrix.os }} - headless build + tests"
+            # The lines that mention an error, minus CMake's configure chatter.
             grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
-              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -40 || true
+              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -30 || true
+            # ...plus the block after the first FAILED:, because a tool like
+            # shaderc prints its complaint underneath the command that failed
+            # and the word "error" may appear nowhere in it.
+            failed_at=$(grep -n "FAILED:" build.log | head -1 | cut -d: -f1)
+            if [ -n "$failed_at" ]; then
+              echo "--- first failing block ---"
+              sed -n "${failed_at},$((failed_at + 25))p" build.log | cut -c1-300
+            fi
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
             tail -n 80 build.log >> "$excerpt"
@@ -160,8 +169,17 @@ jobs:
           excerpt=build-excerpt.txt
           {
             echo "### desktop ${{ matrix.os }} - runtime build"
+            # The lines that mention an error, minus CMake's configure chatter.
             grep -nE "error|CMake Error|FAILED:|undefined reference|ninja: build stopped|tests failed|No such file" build.log \
-              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -40 || true
+              | grep -vE "^[0-9]+:-- |0 errors?|error-reporting|-Werror" | head -30 || true
+            # ...plus the block after the first FAILED:, because a tool like
+            # shaderc prints its complaint underneath the command that failed
+            # and the word "error" may appear nowhere in it.
+            failed_at=$(grep -n "FAILED:" build.log | head -1 | cut -d: -f1)
+            if [ -n "$failed_at" ]; then
+              echo "--- first failing block ---"
+              sed -n "${failed_at},$((failed_at + 25))p" build.log | cut -c1-300
+            fi
           } > "$excerpt"
           if [ ! -s "$excerpt" ]; then
             tail -n 80 build.log >> "$excerpt"

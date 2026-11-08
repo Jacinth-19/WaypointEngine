@@ -230,7 +230,10 @@ function(waypoint_dependency_lua)
     set(source "${WAYPOINT_DEP_lua_SOURCE_DIR}")
 
     file(GLOB lua_sources CONFIGURE_DEPENDS "${source}/*.c")
-    list(FILTER lua_sources EXCLUDE REGEX "/(lua|luac|ltests)\\.c$")
+    # lua.c/luac.c are the standalone interpreter and compiler, ltests.c is the
+    # test harness, and onelua.c is an amalgamation of every other file - keep
+    # any two of them and you get duplicate symbols.
+    list(FILTER lua_sources EXCLUDE REGEX "/(lua|luac|ltests|onelua)\\.c$")
     if(NOT lua_sources)
         message(FATAL_ERROR "Waypoint: no Lua sources found in ${source}")
     endif()

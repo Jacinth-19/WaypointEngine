@@ -38,7 +38,8 @@ namespace {
 namespace Layers {
 constexpr JPH::ObjectLayer kNonMoving = 0;
 constexpr JPH::ObjectLayer kMoving = 1;
-constexpr JPH::ObjectLayer kCount = 2;
+// Only read from JPH_ASSERT, which compiles to nothing in release builds.
+[[maybe_unused]] constexpr JPH::ObjectLayer kCount = 2;
 }  // namespace Layers
 
 namespace BroadPhaseLayers {
@@ -95,12 +96,16 @@ void joltTrace(const char* format, ...) {
     Log::warn("[Jolt] {}", buffer);
 }
 
+// Only Jolt Debug builds have this hook, so the definition follows the same
+// condition as the assignment in initialize().
+#ifdef JPH_ENABLE_ASSERTS
 bool joltAssertFailed(const char* expression, const char* message, const char* file,
                       JPH::uint line) {
     Log::error("[Jolt] assertion failed: {} ({}) at {}:{}", expression,
                message != nullptr ? message : "", file, line);
     return true;  // true = break into the debugger when one is attached
 }
+#endif
 
 JPH::EMotionType toJoltMotion(RigidBodyComponent::Motion motion) {
     switch (motion) {
@@ -185,7 +190,11 @@ bool JoltPhysicsWorld::initialize(const Settings& settings, std::string* error) 
         // exists. Skipping it crashes inside Jolt's own assertion handler.
         JPH::RegisterDefaultAllocator();
         JPH::Trace = joltTrace;
+        // Jolt only declares the hook when its asserts are on (Debug builds);
+        // in Release the symbol does not exist at all.
+#ifdef JPH_ENABLE_ASSERTS
         JPH::AssertFailed = joltAssertFailed;
+#endif
         JPH::Factory::sInstance = new JPH::Factory();
         JPH::RegisterTypes();
         m_impl->factoryInstalled = true;
