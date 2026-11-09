@@ -59,9 +59,10 @@ public:
     // Call after the window changes size. Recreates the back buffer.
     void resize(u16 width, u16 height);
 
-    // Starts a frame: clears the colour buffer, sets the camera and draws the
-    // ground grid. `fieldOfViewDegrees` is vertical.
-    void beginFrame(const Transform& cameraTransform, f32 fieldOfViewDegrees);
+    // Starts a frame: clears the colour buffer, sets the camera, uploads the
+    // scene's directional lights and draws the ground grid. `fieldOfViewDegrees`
+    // is vertical.
+    void beginFrame(const World& world, const Transform& cameraTransform, f32 fieldOfViewDegrees);
 
     // Draws every entity that has a MeshRendererComponent and a Transform.
     // Returns the number of meshes submitted.

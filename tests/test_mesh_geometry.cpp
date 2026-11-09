@@ -101,3 +101,36 @@ TEST_CASE("packColor clamps instead of wrapping") {
     CHECK(channel(packColor(-1.0f, 2.0f, 0.5f), 16) == 128);
     CHECK(channel(packColor(1.0f, 1.0f, 1.0f), 24) == 255);
 }
+
+TEST_CASE("buildMeshVertices carries the file's normals so lighting has something to shade") {
+    // Before this, the renderer baked a fake per-face brightness into the cube's
+    // colours. Real lighting needs a normal per vertex, so a glTF file's normals
+    // have to survive the conversion.
+    GltfPrimitive primitive;
+    primitive.positions = {Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 1.0f, 1.0f)};
+    primitive.normals = {Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f)};
+
+    const std::vector<MeshVertex> vertices = buildMeshVertices(primitive, Vec3(1.0f));
+    REQUIRE(vertices.size() == 2);
+    for (const MeshVertex& vertex : vertices) {
+        CHECK(vertex.nx == doctest::Approx(0.0f));
+        CHECK(vertex.ny == doctest::Approx(1.0f));
+        CHECK(vertex.nz == doctest::Approx(0.0f));
+    }
+}
+
+TEST_CASE("buildMeshVertices gives a normal to a file that has none") {
+    // A mesh without normals must still be shaded: pointing them all up is
+    // visibly wrong, but a zero normal is NaN in the shader and blacks the mesh
+    // out entirely.
+    GltfPrimitive primitive;
+    primitive.positions = {Vec3(0.0f), Vec3(1.0f, 0.0f, 0.0f)};
+
+    const std::vector<MeshVertex> vertices = buildMeshVertices(primitive, Vec3(1.0f));
+    REQUIRE(vertices.size() == 2);
+    for (const MeshVertex& vertex : vertices) {
+        CHECK(vertex.nx == 0.0f);
+        CHECK(vertex.ny == 1.0f);
+        CHECK(vertex.nz == 0.0f);
+    }
+}

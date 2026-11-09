@@ -10,6 +10,7 @@
 #include "render/BgfxRenderer.hpp"
 
 #include "core/ImageWrite.hpp"
+#include "ecs/Components.hpp"
 #include "render/MeshGeometry.hpp"
 
 #include <array>
@@ -43,13 +44,18 @@ namespace {
 // the headless suite can test them.
 using MeshVertex = waypoint::MeshVertex;
 
-// A unit cube made of six coloured faces, so the shape reads without lighting.
+// How much light a surface gets with its back to the sun. Without it, faces
+// turned away from the light would be pure black and the cube would read as
+// three black sides.
+constexpr f32 kAmbient = 0.18f;
+
+// A unit cube: 24 vertices, four per face, so each face has one flat normal.
+// The colour is white and the tint uniform does the colouring - the per-face
+// brightness this used to bake in was a stand-in for lighting, which is now real.
 const std::array<MeshVertex, 24>& cubeVertices() {
     static const std::array<MeshVertex, 24> vertices = [] {
         std::array<MeshVertex, 24> result{};
         const f32 h = 0.5f;
-        // Six faces; each face gets a slightly different brightness.
-        const f32 shades[6] = {1.0f, 0.82f, 0.68f, 0.9f, 0.76f, 0.6f};
         const f32 positions[6][4][3] = {
             // +X
             {{h, -h, -h}, {h, h, -h}, {h, h, h}, {h, -h, h}},
@@ -64,6 +70,10 @@ const std::array<MeshVertex, 24>& cubeVertices() {
             // -Z
             {{h, -h, -h}, {-h, -h, -h}, {-h, h, -h}, {h, h, -h}},
         };
+        const f32 normals[6][3] = {
+            {1.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+            {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, -1.0f},
+        };
 
         for (int face = 0; face < 6; ++face) {
             for (int vertex = 0; vertex < 4; ++vertex) {
@@ -71,7 +81,9 @@ const std::array<MeshVertex, 24>& cubeVertices() {
                 out.x = positions[face][vertex][0];
                 out.y = positions[face][vertex][1];
                 out.z = positions[face][vertex][2];
-                out.abgr = packColor(shades[face], shades[face], shades[face]);
+                out.nx = normals[face][0];
+                out.ny = normals[face][1];
+                out.nz = normals[face][2];
             }
         }
         return result;
@@ -95,6 +107,7 @@ const std::array<u16, 36>& cubeIndices() {
 // tinted so beginners can see which way is which.
 std::vector<MeshVertex> buildGrid(f32 halfExtent, f32 spacing) {
     std::vector<MeshVertex> vertices;
+    // The grid lies flat, so every normal points up.
     const int lines = static_cast<int>(halfExtent / spacing);
     vertices.reserve(static_cast<std::size_t>(lines * 2 + 1) * 4);
 
@@ -105,14 +118,14 @@ std::vector<MeshVertex> buildGrid(f32 halfExtent, f32 spacing) {
         // Lines running along Z.
         const u32 alongZ = isAxis ? packColor(0.85f, 0.30f, 0.30f)   // X axis is red
                                   : packColor(0.28f, 0.29f, 0.31f);
-        vertices.push_back({offset, 0.0f, -halfExtent, alongZ});
-        vertices.push_back({offset, 0.0f, halfExtent, alongZ});
+        vertices.push_back({offset, 0.0f, -halfExtent, 0.0f, 1.0f, 0.0f, alongZ});
+        vertices.push_back({offset, 0.0f, halfExtent, 0.0f, 1.0f, 0.0f, alongZ});
 
         // Lines running along X.
         const u32 alongX = isAxis ? packColor(0.30f, 0.45f, 0.90f)   // Z axis is blue
                                   : packColor(0.28f, 0.29f, 0.31f);
-        vertices.push_back({-halfExtent, 0.0f, offset, alongX});
-        vertices.push_back({halfExtent, 0.0f, offset, alongX});
+        vertices.push_back({-halfExtent, 0.0f, offset, 0.0f, 1.0f, 0.0f, alongX});
+        vertices.push_back({halfExtent, 0.0f, offset, 0.0f, 1.0f, 0.0f, alongX});
     }
     return vertices;
 }
@@ -236,6 +249,8 @@ struct BgfxRenderer::Impl {
     bgfx::VertexLayout layout;
     bgfx::ProgramHandle program{BGFX_INVALID_HANDLE};
     bgfx::UniformHandle tint{BGFX_INVALID_HANDLE};
+    bgfx::UniformHandle lightDirection{BGFX_INVALID_HANDLE};
+    bgfx::UniformHandle lightColor{BGFX_INVALID_HANDLE};
     // Meshes named by a scene, uploaded on first use and kept for the lifetime
     // of the renderer. Keyed by the reference as written in the scene file.
     struct UploadedMesh {
@@ -299,11 +314,43 @@ struct BgfxRenderer::Impl {
     void createGeometry() {
         layout.begin()
             .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
             .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
             .end();
 
         // The built-in cube and grid are uploaded on first use by meshFor(),
         // which also caches anything a scene names.
+    }
+
+    // One directional light, for now: u_lightDirection and u_lightColor carry a
+    // single sun. A scene with none gets the default from
+    // DirectionalLightComponent, so a mesh is never left unlit.
+    void setLightUniforms(const World& world) {
+        Vec3 direction(0.0f, -1.0f, 0.0f);
+        Vec3 color(1.0f);
+        f32 intensity = 1.0f;
+        std::size_t lights = 0;
+
+        const auto view = world.registry().view<const DirectionalLightComponent>();
+        for (const entt::entity entity : view) {
+            const auto& light = view.get<const DirectionalLightComponent>(entity);
+            if (lights == 0) {
+                direction = light.direction;
+                color = light.color;
+                intensity = light.intensity;
+            }
+            ++lights;
+        }
+        if (lights > 1) {
+            // Only once per light-count change would be nicer; every frame is
+            // honest and cheap enough for now.
+            Log::debug("{} directional lights in the scene; shading uses the first", lights);
+        }
+
+        const float directionAndIntensity[4] = {direction.x, direction.y, direction.z, intensity};
+        const float colorAndAmbient[4] = {color.x, color.y, color.z, kAmbient};
+        bgfx::setUniform(lightDirection, directionAndIntensity);
+        bgfx::setUniform(lightColor, colorAndAmbient);
     }
 
     bool createShaders(const std::string& directory) {
@@ -329,6 +376,9 @@ struct BgfxRenderer::Impl {
             return false;
         }
 
+        tint = bgfx::createUniform("u_tint", bgfx::UniformType::Vec4);
+        lightDirection = bgfx::createUniform("u_lightDirection", bgfx::UniformType::Vec4);
+        lightColor = bgfx::createUniform("u_lightColor", bgfx::UniformType::Vec4);
         program = bgfx::createProgram(vertexShader, fragmentShader, true);
         if (!bgfx::isValid(program)) {
             Log::error("Could not create the shader program");
@@ -542,7 +592,8 @@ void BgfxRenderer::resize(u16 width, u16 height) {
     bgfx::reset(m_impl->resetFlags, &m_impl->swapChain);
 }
 
-void BgfxRenderer::beginFrame(const Transform& cameraTransform, f32 fieldOfViewDegrees) {
+void BgfxRenderer::beginFrame(const World& world, const Transform& cameraTransform,
+                              f32 fieldOfViewDegrees) {
     if (!initialized()) {
         return;
     }
@@ -576,6 +627,11 @@ void BgfxRenderer::beginFrame(const Transform& cameraTransform, f32 fieldOfViewD
         m_impl->drawMissingShaderMessage();
         return;
     }
+
+    // The scene's directional lights, flattened into the two uniforms the
+    // fragment shader reads. The first light drives the shading; the rest are
+    // counted and reported, because silently dropping them would be a lie.
+    m_impl->setLightUniforms(world);
 
     // Ground grid: a line list with no lighting and no depth writes.
     const std::uint64_t gridState = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_LESS |

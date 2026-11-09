@@ -287,7 +287,7 @@ int Application::run(const ApplicationConfig& config) {
 
         f32 fieldOfView = 60.0f;
         const Transform camera = primaryCameraTransform(app.scene, fieldOfView);
-        app.renderer.beginFrame(camera, fieldOfView);
+        app.renderer.beginFrame(app.scene.world(), camera, fieldOfView);
         drawsSubmitted += app.renderer.drawWorld(app.scene.world());
         app.renderer.endFrame();
 

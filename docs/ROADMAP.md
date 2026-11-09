@@ -37,12 +37,12 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 
 ## 2. Lighting
 
-Nothing here has started. `DirectionalLightComponent` exists in the ECS and
-loads from a scene, but the renderer does not read it: every surface is a flat
-vertex colour multiplied by one tint uniform, so the sun in hello_cube is data
-with no effect on the picture.
+One directional light now shades the scene: Lambert diffuse plus a small ambient
+term, with the light taken from the first `DirectionalLightComponent` in the
+scene. No shadows yet, so a mesh never occludes the light, and a second light is
+counted and reported rather than applied.
 
-- [ ] Directional light with cascaded shadow maps
+- [~] Directional light with cascaded shadow maps — the light works, shadows do not
 - [ ] PBR shading (metallic/roughness, Cook–Torrance)
 - [ ] HDR framebuffer + tonemap
 - [ ] Image-based lighting / reflection probes

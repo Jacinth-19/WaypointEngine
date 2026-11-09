@@ -19,11 +19,17 @@ std::vector<MeshVertex> buildMeshVertices(const GltfPrimitive& primitive, Vec3 t
     vertices.reserve(primitive.positions.size());
 
     const bool fileHasColors = primitive.colors.size() == primitive.positions.size();
+    const bool fileHasNormals = primitive.normals.size() == primitive.positions.size();
     for (std::size_t i = 0; i < primitive.positions.size(); ++i) {
         MeshVertex vertex;
         vertex.x = primitive.positions[i].x;
         vertex.y = primitive.positions[i].y;
         vertex.z = primitive.positions[i].z;
+        if (fileHasNormals) {
+            vertex.nx = primitive.normals[i].x;
+            vertex.ny = primitive.normals[i].y;
+            vertex.nz = primitive.normals[i].z;
+        }
         if (fileHasColors) {
             const Vec3& color = primitive.colors[i];
             vertex.abgr = packColor(color.x, color.y, color.z, 1.0f);
