@@ -28,10 +28,20 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 - [x] Mesh registry replacing the hardcoded cube path — `builtin:*` or a glTF path,
       resolved against the project root, failed references reported once
 - [ ] Material assets (metallic/roughness), texture loading via stb/bimg
-- [ ] Asset paths resolved relative to the project, with clear errors
-- [ ] Test: load a .glb in the headless suite (geometry only)
+- [~] Asset paths resolved relative to the project, with clear errors. Mesh
+      references, the start scene and the manifest's scriptEntry all resolve
+      against the project root, and a missing mesh file is reported once by the
+      renderer. What is left: a scene's per-entity `ScriptComponent.path` is
+      loaded and saved but never resolved, never checked for existence, and
+      never executed - only the manifest's single `scriptEntry` runs.
+- [x] Test: load a .glb in the headless suite (geometry only)
 
 ## 2. Lighting
+
+Nothing here has started. `DirectionalLightComponent` exists in the ECS and
+loads from a scene, but the renderer does not read it: every surface is a flat
+vertex colour multiplied by one tint uniform, so the sun in hello_cube is data
+with no effect on the picture.
 
 - [ ] Directional light with cascaded shadow maps
 - [ ] PBR shading (metallic/roughness, Cook–Torrance)
@@ -49,6 +59,9 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 - [ ] 3D viewport sharing the engine renderer
 
 ## 4. Open-world foundation
+
+Nothing here has started. The one exception worth knowing: Jolt's character
+controllers exist in the library but nothing in `engine/` wraps them yet.
 
 - [ ] Sector streaming (load/unload cells around the player)
 - [ ] LOD chain switching and cull zones
