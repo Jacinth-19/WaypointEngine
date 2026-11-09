@@ -6,6 +6,15 @@ All notable changes to Waypoint Engine. Format follows
 
 ## [Unreleased]
 
+### Fixed
+- Per-entity scripts now run. A scene's `ScriptComponent.path` was loaded from
+  JSON and written back out, but nothing ever resolved or executed it - only the
+  manifest's single `scriptEntry` ran, so a scene author's per-entity Lua was
+  silently dead. Each scripted entity now gets its own Lua environment, and both
+  hooks receive the entity's handle: `on_start(handle)` and
+  `on_update(dt, handle)`. Scripts that declare fewer arguments keep working,
+  because Lua discards extras.
+
 ### Added
 - Meshes named by a scene are loaded and drawn. `MeshRendererComponent.mesh`
   accepts `builtin:cube`, `builtin:grid` or a glTF path relative to the project

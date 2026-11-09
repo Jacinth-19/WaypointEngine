@@ -58,27 +58,33 @@ std::string describeError(const Result& result) {
 
 }  // namespace
 
-struct LuaScriptEngine::Impl {
+// One Lua state plus the entity it belongs to. The entry script uses
+// kInvalidEntity; per-entity scripts carry their own handle.
+struct ScriptEnvironment {
     sol::state lua;
+    EntityHandle entity = kInvalidEntity;
+    std::string name;
+};
+
+struct LuaScriptEngine::Impl {
+    // Index 0 is the project's entry script, when there is one. The rest are
+    // per-entity scripts, in load order.
+    std::vector<std::unique_ptr<ScriptEnvironment>> environments;
     const Input* input = nullptr;
     bool loadedSuccessfully = false;
 
-    Impl() {
-        lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::math, sol::lib::table,
-                           sol::lib::os, sol::lib::coroutine);
-        bindApi();
-    }
+    Impl() = default;
 
-    void bindApi() {
+    void bindApi(sol::state& lua) {
         sol::table waypoint = lua.create_named_table("waypoint");
 
-        waypoint.set_function("log", [this](sol::variadic_args args) {
+        waypoint.set_function("log", [&lua](sol::variadic_args args) {
             Log::info("lua: {}", stringifyArguments(lua, args));
         });
-        waypoint.set_function("warn", [this](sol::variadic_args args) {
+        waypoint.set_function("warn", [&lua](sol::variadic_args args) {
             Log::warn("lua: {}", stringifyArguments(lua, args));
         });
-        waypoint.set_function("error", [this](sol::variadic_args args) {
+        waypoint.set_function("error", [&lua](sol::variadic_args args) {
             Log::error("lua: {}", stringifyArguments(lua, args));
         });
 
@@ -114,24 +120,44 @@ struct LuaScriptEngine::Impl {
         });
     }
 
-    [[nodiscard]] bool hasFunction(const char* name) const {
+    static bool hasFunction(const sol::state& lua, const char* name) {
         const sol::object value = lua[std::string(name)];
         return value.is<sol::protected_function>() || value.is<sol::function>();
     }
 
-    bool describeResult(const sol::protected_function_result& result, const char* hookName,
-                        std::string* error) {
+    // Creates a state with the engine API bound. Every environment gets its own,
+    // so scripts cannot read or clobber each other's globals.
+    std::unique_ptr<ScriptEnvironment> makeEnvironment(std::string name, EntityHandle entity) {
+        auto environment = std::make_unique<ScriptEnvironment>();
+        environment->name = std::move(name);
+        environment->entity = entity;
+        environment->lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::math,
+                                        sol::lib::table, sol::lib::os, sol::lib::coroutine);
+        bindApi(environment->lua);
+        return environment;
+    }
+
+    // Runs one hook in one environment, passing the entity handle.
+    bool callHook(ScriptEnvironment& environment, const char* hookName, f32 deltaSeconds,
+                  bool passEntity, std::string* error) {
+        if (!hasFunction(environment.lua, hookName)) {
+            return true;  // a script without this hook is not an error
+        }
+        const sol::protected_function function = environment.lua[hookName];
+        const sol::protected_function_result result =
+            passEntity ? function(deltaSeconds, environment.entity) : function(environment.entity);
         if (result.valid()) {
             return true;
         }
-        const std::string message =
-            std::string("error in ") + hookName + "(): " + describeError(result);
+        const std::string message = "error in " + environment.name + " " + hookName + "(): " +
+                                    describeError(result);
         Log::error("{}", message);
         if (error != nullptr) {
             *error = message;
         }
         return false;
     }
+
 };
 
 LuaScriptEngine::LuaScriptEngine() : m_impl(std::make_unique<Impl>()) {}
@@ -160,10 +186,13 @@ bool LuaScriptEngine::loadFile(const std::filesystem::path& path, std::string* e
 
 bool LuaScriptEngine::loadString(std::string_view source, std::string_view chunkName,
                                 std::string* error) {
+    // The entry script replaces whatever was loaded before, so `loaded()` keeps
+    // meaning "the project's entry script is in place".
     m_impl->loadedSuccessfully = false;
+    m_impl->environments.clear();
 
-    sol::load_result loaded =
-        m_impl->lua.load(std::string(source), std::string(chunkName));
+    auto environment = m_impl->makeEnvironment(std::string(chunkName), kInvalidEntity);
+    sol::load_result loaded = environment->lua.load(std::string(source), std::string(chunkName));
     if (!loaded.valid()) {
         const std::string message = "syntax error in " + std::string(chunkName) + ": " +
                                     describeError(loaded);
@@ -186,34 +215,97 @@ bool LuaScriptEngine::loadString(std::string_view source, std::string_view chunk
         return false;
     }
 
+    m_impl->environments.push_back(std::move(environment));
     m_impl->loadedSuccessfully = true;
     return true;
 }
 
 bool LuaScriptEngine::callOnStart(std::string* error) {
-    if (!m_impl->hasFunction("on_start")) {
+    if (m_impl->environments.empty()) {
         return true;
     }
-    const sol::protected_function function = m_impl->lua["on_start"];
-    const sol::protected_function_result result = function();
-    return m_impl->describeResult(result, "on_start", error);
+    return m_impl->callHook(*m_impl->environments.front(), "on_start", 0.0f, false, error);
 }
 
 bool LuaScriptEngine::callOnUpdate(f32 deltaSeconds, std::string* error) {
-    if (!m_impl->hasFunction("on_update")) {
+    if (m_impl->environments.empty()) {
         return true;
     }
-    const sol::protected_function function = m_impl->lua["on_update"];
-    const sol::protected_function_result result = function(deltaSeconds);
-    return m_impl->describeResult(result, "on_update", error);
+    return m_impl->callHook(*m_impl->environments.front(), "on_update", deltaSeconds, true, error);
+}
+
+std::uint32_t LuaScriptEngine::loadEntityScript(const std::filesystem::path& path,
+                                                EntityHandle entity, std::string* error) {
+    const auto source = FileSystem::readTextFile(path);
+    if (!source.has_value()) {
+        const std::string message = "could not read script: " + path.generic_string();
+        if (error != nullptr) {
+            *error = message;
+        }
+        Log::error("{}", message);
+        return 0;
+    }
+
+    auto environment = m_impl->makeEnvironment(path.generic_string(), entity);
+    sol::load_result loaded = environment->lua.load(*source, path.generic_string());
+    if (!loaded.valid()) {
+        const std::string message =
+            "syntax error in " + path.generic_string() + ": " + describeError(loaded);
+        if (error != nullptr) {
+            *error = message;
+        }
+        Log::error("{}", message);
+        return 0;
+    }
+
+    const sol::protected_function chunk = loaded;
+    const sol::protected_function_result result = chunk();
+    if (!result.valid()) {
+        const std::string message =
+            "error running " + path.generic_string() + ": " + describeError(result);
+        if (error != nullptr) {
+            *error = message;
+        }
+        Log::error("{}", message);
+        return 0;
+    }
+
+    m_impl->environments.push_back(std::move(environment));
+    return static_cast<std::uint32_t>(m_impl->environments.size());
+}
+
+bool LuaScriptEngine::callOnStartAll(std::string* error) {
+    bool ok = true;
+    for (auto& environment : m_impl->environments) {
+        if (!m_impl->callHook(*environment, "on_start", 0.0f, false, error)) {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+bool LuaScriptEngine::callOnUpdateAll(f32 deltaSeconds, std::string* error) {
+    bool ok = true;
+    for (auto& environment : m_impl->environments) {
+        if (!m_impl->callHook(*environment, "on_update", deltaSeconds, true, error)) {
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 bool LuaScriptEngine::hasOnStart() const {
-    return m_impl->hasFunction("on_start");
+    return !m_impl->environments.empty() &&
+           Impl::hasFunction(m_impl->environments.front()->lua, "on_start");
 }
 
 bool LuaScriptEngine::hasOnUpdate() const {
-    return m_impl->hasFunction("on_update");
+    return !m_impl->environments.empty() &&
+           Impl::hasFunction(m_impl->environments.front()->lua, "on_update");
+}
+
+std::size_t LuaScriptEngine::environmentCount() const {
+    return m_impl->environments.size();
 }
 
 bool LuaScriptEngine::loaded() const {
@@ -222,7 +314,6 @@ bool LuaScriptEngine::loaded() const {
 
 void LuaScriptEngine::reset() {
     const Input* input = m_impl->input;
-    m_impl->lua = sol::state{};
     m_impl = std::make_unique<Impl>();
     m_impl->input = input;
 }

@@ -190,6 +190,37 @@ int Application::run(const ApplicationConfig& config) {
             Log::warn("{}", error);
         }
     }
+
+    // Per-entity scripts: every ScriptComponent gets its own environment, so two
+    // entities sharing a file have separate globals and can tell themselves
+    // apart through the handle they are passed. A path that cannot be read is a
+    // scene bug worth reporting, not a reason to refuse to start.
+    std::size_t entityScripts = 0;
+    const auto scripted = app.scene.world().registry().view<const ScriptComponent>();
+    for (const entt::entity entity : scripted) {
+        const auto& component = scripted.get<const ScriptComponent>(entity);
+        const auto* name = app.scene.world().registry().try_get<NameComponent>(entity);
+        const std::string entityName = name != nullptr ? name->value : "<unnamed>";
+        const std::filesystem::path scriptPath = config.project.resolve(component.path);
+        if (!FileSystem::isRegularFile(scriptPath)) {
+            Log::warn("Entity '{}' names a script that is not there: {}", entityName,
+                      scriptPath.generic_string());
+            continue;
+        }
+        const EntityHandle handle = app.scene.world().toHandle(entity);
+        if (app.script.loadEntityScript(scriptPath, handle, &error) == 0) {
+            Log::warn("{}", error);
+            continue;
+        }
+        ++entityScripts;
+    }
+    if (entityScripts > 0) {
+        Log::info("Scripts: {} entit{} with their own script", entityScripts,
+                  entityScripts == 1 ? "y" : "ies");
+    }
+    if (app.script.environmentCount() > 0 && !app.script.callOnStartAll(&error)) {
+        Log::warn("{}", error);
+    }
 #endif
 
     // ---- loop --------------------------------------------------------------
@@ -249,10 +280,8 @@ int Application::run(const ApplicationConfig& config) {
 #endif
 
 #if WAYPOINT_HAS_SCRIPTING
-        if (scriptReady && app.script.hasOnUpdate()) {
-            if (!app.script.callOnUpdate(deltaSeconds, &error)) {
-                Log::warn("{}", error);
-            }
+        if (!app.script.callOnUpdateAll(deltaSeconds, &error)) {
+            Log::warn("{}", error);
         }
 #endif
 

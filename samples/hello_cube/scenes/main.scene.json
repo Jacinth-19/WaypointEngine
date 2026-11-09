@@ -162,7 +162,7 @@
           "useGravity": true
         },
         "script": {
-          "path": "scripts/main.lua"
+          "path": "scripts/cube.lua"
         }
       }
     },

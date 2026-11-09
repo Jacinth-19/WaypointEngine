@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "TestDoctest.hpp"
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "script/LuaScriptEngine.hpp"
 
 using namespace waypoint;
+using waypoint::test::TempDir;
 
 namespace {
 
@@ -233,4 +235,105 @@ TEST_CASE("Lua: reset() clears state so scripts cannot leak into each other") {
     REQUIRE_MESSAGE(engine.loadString("function on_update(dt) end", "second", &error), error);
     CHECK_FALSE(engine.hasOnStart());
     CHECK(engine.hasOnUpdate());
+}
+
+TEST_CASE("Lua: per-entity scripts get their own environment and their handle") {
+    LogCapture capture;
+    LuaScriptEngine engine;
+
+    // The entry script first, so the ordering the engine documents holds.
+    std::string error;
+    REQUIRE(engine.loadString(R"(
+        function on_start(handle)
+            waypoint.log("entry " .. tostring(handle))
+        end
+    )",
+                              "entry.lua", &error));
+
+    // Two entities, same file: each must get its own globals, or a counter in
+    // one would be visible in the other.
+    const TempDir dir;
+    const auto script = dir.path() / "spin.lua";
+    REQUIRE(FileSystem::writeTextFile(script, R"(
+        turns = 0
+        mine = nil
+
+        function on_start(handle)
+            mine = handle
+            waypoint.log("start " .. tostring(handle))
+        end
+
+        function on_update(dt, handle)
+            turns = turns + 1
+            waypoint.log("entity " .. tostring(handle) .. " turn " .. turns)
+        end
+    )",
+                                     nullptr));
+
+    const EntityHandle first = 111;
+    const EntityHandle second = 222;
+    REQUIRE(engine.loadEntityScript(script, first, &error) != 0);
+    REQUIRE(engine.loadEntityScript(script, second, &error) != 0);
+    CHECK(engine.environmentCount() == 3);
+
+    REQUIRE(engine.callOnStartAll(&error));
+    // Each environment was handed only its own entity's handle.
+    CHECK(capture.contains("info: lua: start 111"));
+    CHECK(capture.contains("info: lua: start 222"));
+
+    // Two updates: the counters are per environment, so each is at 2 - not 4.
+    LogCapture turnCapture;
+    REQUIRE(engine.callOnUpdateAll(0.5f, &error));
+    REQUIRE(engine.callOnUpdateAll(0.5f, &error));
+    CHECK(turnCapture.contains("info: lua: entity 111 turn 2"));
+    CHECK(turnCapture.contains("info: lua: entity 222 turn 2"));
+    CHECK_FALSE(turnCapture.contains("turn 3"));
+    CHECK_FALSE(turnCapture.contains("turn 4"));
+}
+
+TEST_CASE("Lua: a broken entity script does not stop the others") {
+    LogCapture capture;
+    LuaScriptEngine engine;
+    std::string error;
+
+    const TempDir dir;
+    const auto good = dir.path() / "good.lua";
+    const auto bad = dir.path() / "bad.lua";
+    REQUIRE(FileSystem::writeTextFile(good, "function on_update(dt) waypoint.log(\"good\") end\n",
+                                      nullptr));
+    REQUIRE(FileSystem::writeTextFile(bad, "function on_update(dt) error(\"boom\") end\n", nullptr));
+
+    REQUIRE(engine.loadEntityScript(good, 1, &error) != 0);
+    REQUIRE(engine.loadEntityScript(bad, 2, &error) != 0);
+
+    CHECK_FALSE(engine.callOnUpdateAll(0.1f, &error));
+    CHECK(error.find("boom") != std::string::npos);
+    // The healthy script still ran.
+    CHECK(capture.contains("info: lua: good"));
+}
+
+TEST_CASE("Lua: loadEntityScript reports a missing file instead of adding an environment") {
+    LuaScriptEngine engine;
+    std::string error;
+    const TempDir dir;
+
+    CHECK(engine.loadEntityScript(dir.path() / "nope.lua", 7, &error) == 0);
+    CHECK(error.find("could not read script") != std::string::npos);
+    CHECK(engine.environmentCount() == 0);
+}
+
+TEST_CASE("Lua: scripts that ignore the handle argument still run") {
+    // The documented signature grew a parameter; a script written against the
+    // old one must keep working, because Lua discards extra arguments.
+    LuaScriptEngine engine;
+    std::string error;
+    REQUIRE(engine.loadString(R"(
+        calls = 0
+        function on_update(dt)
+            calls = calls + 1
+        end
+    )",
+                              "old.lua", &error));
+    REQUIRE(engine.callOnUpdate(0.016f, &error));
+    CHECK(error.empty());
 }

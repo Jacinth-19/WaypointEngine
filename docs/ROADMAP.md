@@ -28,12 +28,11 @@ Anything not listed in `docs/STATUS.md` as verified is still ahead of us.
 - [x] Mesh registry replacing the hardcoded cube path — `builtin:*` or a glTF path,
       resolved against the project root, failed references reported once
 - [ ] Material assets (metallic/roughness), texture loading via stb/bimg
-- [~] Asset paths resolved relative to the project, with clear errors. Mesh
-      references, the start scene and the manifest's scriptEntry all resolve
-      against the project root, and a missing mesh file is reported once by the
-      renderer. What is left: a scene's per-entity `ScriptComponent.path` is
-      loaded and saved but never resolved, never checked for existence, and
-      never executed - only the manifest's single `scriptEntry` runs.
+- [x] Asset paths resolved relative to the project, with clear errors. Mesh
+      references, the start scene, the manifest's scriptEntry and every
+      ScriptComponent path resolve against the project root; a missing mesh file
+      is reported once by the renderer and a missing script is reported with the
+      entity that named it.
 - [x] Test: load a .glb in the headless suite (geometry only)
 
 ## 2. Lighting
@@ -69,7 +68,9 @@ controllers exist in the library but nothing in `engine/` wraps them yet.
 - [ ] Entity pools for traffic/pedestrian-style crowds
 - [ ] Character controller, then vehicle controller
 - [ ] Audio (miniaudio or SDL audio) and a UI layer
-- [ ] Mission scripting: per-entity `ScriptComponent` instances and events
+- [~] Mission scripting: per-entity `ScriptComponent` instances run, each with its own
+      environment and its entity's handle. What is left is events - nothing can
+      tell a script "you were hit" yet.
 
 ## 5. Export
 

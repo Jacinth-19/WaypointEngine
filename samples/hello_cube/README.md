@@ -17,6 +17,25 @@ python tools/wp.py run samples/hello_cube
 | Right mouse (hold) or F1 | capture the mouse and look |
 | Escape | quit |
 
+## Scripts
+
+Two kinds, and they are different things:
+
+- `scripts/main.lua` is the **entry script**, named by `scriptEntry` in
+  `waypoint.project.json`. One per project.
+- `scripts/cube.lua` is attached to a single entity by the scene's `script`
+  component. Every entity that names a file gets its own copy of that file's
+  globals, and both hooks receive the entity's handle:
+
+```lua
+function on_start(handle)          -- once, after the scene loads
+function on_update(dt, handle)     -- every frame, dt in seconds
+```
+
+Two entities can share a file and still tell themselves apart, which is the
+point: a script that counted its own frames would count one cube's frames, not
+both. Declaring fewer arguments still works, because Lua discards the rest.
+
 ## Assets
 
 `assets/cube.glb` is a real glTF 2.0 binary: 24 vertices, 36 indices, flat normals,
